@@ -126,8 +126,6 @@ class TextInput:
             # Увеличиваем задержку для надежности
             time.sleep(0.3)
             
-            self._focus_target_window()
-            
             # Пробуем вставить через несколько методов
             success = False
             
@@ -211,7 +209,6 @@ class TextInput:
         try:
             import keyboard
             logger.info(f"Ввод текста через typing: {repr(text)}")
-            self._focus_target_window()
             keyboard.write(text, delay=0.02)
             return True
         except ImportError:
@@ -221,17 +218,6 @@ class TextInput:
             logger.warning(f"Не удалось ввести текст через typing: {e}")
             return False
 
-    def _focus_target_window(self):
-        """Пытаемся гарантировать, что нужное окно в фокусе."""
-        try:
-            import pyautogui
-            current_pos = pyautogui.position()
-            pyautogui.click(current_pos.x, current_pos.y)
-            time.sleep(0.05)
-        except ImportError:
-            logger.debug("pyautogui недоступен, пропускаем фокусировку")
-        except Exception as e:
-            logger.debug(f"Не удалось сфокусировать окно: {e}")
     
     def send_text(self, text):
         """

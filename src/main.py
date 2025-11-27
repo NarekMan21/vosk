@@ -325,6 +325,20 @@ class VoiceInputApp:
             tk.Button(button_frame, text="Сохранить", command=save_settings, width=12).pack(side=tk.LEFT, padx=5)
             tk.Button(button_frame, text="Отмена", command=on_close, width=12).pack(side=tk.LEFT, padx=5)
 
+            # Позиционирование окна в правом нижнем углу экрана (ближе к трею)
+            # Обновляем окно для получения корректных размеров
+            root.update_idletasks()
+            window_width = root.winfo_width()
+            window_height = root.winfo_height()
+            screen_width = root.winfo_screenwidth()
+            screen_height = root.winfo_screenheight()
+            
+            # Позиция: правый нижний угол с небольшим отступом (50px от правого края, 100px от нижнего)
+            x = screen_width - window_width - 50
+            y = screen_height - window_height - 100
+            
+            root.geometry(f"+{x}+{y}")
+
             root.mainloop()
 
         threading.Thread(target=_show_settings, daemon=True).start()

@@ -12,10 +12,10 @@
   },
   "hotkeys": {
     "toggle": "win+h",
-    "pause": "ctrl+shift+p"
+    "pause": "ctrl+shift+o"
   },
   "input": {
-    "method": "typing"
+    "method": "clipboard"
   },
   "voice_commands": {
     "запятая": ",",

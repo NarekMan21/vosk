@@ -54,6 +54,9 @@ class Config:
                 "toggle": "win+h",
                 "pause": "ctrl+shift+p"
             },
+            "input": {
+                "method": "clipboard"  # clipboard or typing
+            },
             "voice_commands": {
                 "запятая": ",",
                 "точка": ".",
@@ -171,6 +174,11 @@ class Config:
         """Словарь голосовых команд."""
         return self.get("voice_commands", {})
     
+    @property
+    def input_method(self):
+        """Способ ввода текста: clipboard или typing."""
+        return self.get("input.method", "clipboard")
+
     @property
     def auto_start(self):
         """Автозапуск при старте."""

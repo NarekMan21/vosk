@@ -38,7 +38,7 @@ class VoiceInputApp:
         self.config = Config()
         self.audio_capture = None
         self.speech_recognition = None
-        self.text_input = TextInput()
+        self.text_input = TextInput(self.config.input_method)
         self.voice_commands = VoiceCommands(self.config.voice_commands)
         self.system_tray = None
         self.hotkey_manager = HotkeyManager()

@@ -38,7 +38,7 @@ class INPUT(ctypes.Structure):
 class TextInput:
     """Класс для эмуляции клавиатурного ввода в активное окно."""
     
-    def __init__(self):
+    def __init__(self, input_method="clipboard"):
         """Инициализация модуля ввода текста."""
         self.user32 = ctypes.windll.user32
         self.kernel32 = ctypes.windll.kernel32
@@ -47,6 +47,7 @@ class TextInput:
         self.send_input.restype = wintypes.UINT
         self.get_last_error = self.kernel32.GetLastError
         self.get_last_error.restype = wintypes.DWORD
+        self.input_method = input_method.lower()
         
     def send_unicode_char(self, char):
         """
@@ -194,6 +195,31 @@ class TextInput:
         except Exception as e:
             logger.error(f"Ошибка при отправке текста через буфер обмена: {e}", exc_info=True)
             return False
+
+    def send_text_via_typing(self, text):
+        """
+        Отправка текста эмуляцией набора (без буфера обмена).
+        
+        Args:
+            text: Текст для ввода
+        """
+        if not text:
+            return False
+        
+        try:
+            import pyautogui
+            logger.info(f"Ввод текста через typing: {repr(text)}")
+            # Активируем текущее окно кликом (если курсор над нужным полем)
+            pyautogui.click()
+            time.sleep(0.05)
+            pyautogui.typewrite(text, interval=0.02)
+            return True
+        except ImportError:
+            logger.warning("pyautogui не установлен, typing недоступен")
+            return False
+        except Exception as e:
+            logger.warning(f"Не удалось ввести текст через typing: {e}")
+            return False
     
     def send_text(self, text):
         """
@@ -207,9 +233,17 @@ class TextInput:
             return
         
         try:
-            # Сначала пробуем через буфер обмена (более надежно)
-            if self.send_text_via_clipboard(text):
-                return
+            # Выбор метода ввода из конфигурации
+            if self.input_method == "typing":
+                if self.send_text_via_typing(text):
+                    return
+                # если не получилось, пробуем clipboard
+                logger.warning("Метод typing не сработал, пробуем через clipboard")
+                if self.send_text_via_clipboard(text):
+                    return
+            else:
+                if self.send_text_via_clipboard(text):
+                    return
             
             # Если не получилось, пробуем прямой ввод
             success_count = 0

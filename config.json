@@ -15,7 +15,7 @@
     "pause": "ctrl+shift+o"
   },
   "input": {
-    "method": "clipboard"
+    "method": "typing"
   },
   "voice_commands": {
     "запятая": ",",

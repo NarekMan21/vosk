@@ -123,39 +123,38 @@ class TextInput:
             win32clipboard.SetClipboardData(win32con.CF_UNICODETEXT, text)
             win32clipboard.CloseClipboard()
             
-            # Увеличиваем задержку для надежности
-            time.sleep(0.3)
+            # Небольшая задержка для надежности
+            time.sleep(0.1)
             
             # Пробуем вставить через несколько методов
             success = False
             
-            # Метод 1: pyautogui (самый надежный)
+            # Метод 1: keyboard библиотека (самый надежный, работает как typing)
             try:
-                import pyautogui
-                logger.info(f"Попытка вставить текст через pyautogui: {repr(text)}")
-                # Вставляем через Ctrl+V (без клика, чтобы не вызывать двойную вставку)
-                pyautogui.hotkey('ctrl', 'v')
+                import keyboard
+                logger.info(f"Попытка вставить текст через keyboard: {repr(text)}")
+                keyboard.send('ctrl+v', do_press=True, do_release=True)
                 time.sleep(0.15)  # Даем время на вставку
                 success = True
-                logger.info(f"Текст успешно вставлен через pyautogui: {repr(text)}")
+                logger.info(f"Текст успешно вставлен через keyboard: {repr(text)}")
             except ImportError:
-                logger.warning("pyautogui не установлен, пробуем другие методы")
+                logger.warning("keyboard не установлен, пробуем другие методы")
             except Exception as e:
-                logger.warning(f"PyAutoGUI не смог вставить текст: {e}")
+                logger.warning(f"keyboard не смог вставить текст: {e}")
             
-            # Метод 2: keyboard библиотека (если pyautogui не сработал)
+            # Метод 2: pyautogui (если keyboard не сработал)
             if not success:
                 try:
-                    import keyboard
-                    logger.info("Попытка вставить текст через keyboard библиотеку")
-                    keyboard.send('ctrl+v', do_press=True, do_release=True)
-                    time.sleep(0.2)
+                    import pyautogui
+                    logger.info(f"Попытка вставить текст через pyautogui: {repr(text)}")
+                    pyautogui.hotkey('ctrl', 'v')
+                    time.sleep(0.15)
                     success = True
-                    logger.info(f"Текст вставлен через keyboard: {repr(text)}")
+                    logger.info(f"Текст успешно вставлен через pyautogui: {repr(text)}")
                 except ImportError:
-                    logger.warning("keyboard не установлен, пробуем SendInput")
+                    logger.warning("pyautogui не установлен, пробуем SendInput")
                 except Exception as e:
-                    logger.warning(f"keyboard не смог вставить текст: {e}")
+                    logger.warning(f"PyAutoGUI не смог вставить текст: {e}")
             
             # Метод 3: SendInput (последний вариант)
             if not success:

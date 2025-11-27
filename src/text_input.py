@@ -104,12 +104,17 @@ class TextInput:
             import win32con
             
             # Сохраняем текущее содержимое буфера обмена
-            win32clipboard.OpenClipboard()
+            old_data = None
             try:
-                old_data = win32clipboard.GetClipboardData() if win32clipboard.IsClipboardFormatAvailable(win32con.CF_TEXT) else None
+                win32clipboard.OpenClipboard()
+                if win32clipboard.IsClipboardFormatAvailable(win32con.CF_UNICODETEXT):
+                    old_data = win32clipboard.GetClipboardData(win32con.CF_UNICODETEXT)
+                win32clipboard.CloseClipboard()
             except:
-                old_data = None
-            win32clipboard.CloseClipboard()
+                try:
+                    win32clipboard.CloseClipboard()
+                except:
+                    pass
             
             # Копируем текст в буфер обмена
             win32clipboard.OpenClipboard()
@@ -117,27 +122,48 @@ class TextInput:
             win32clipboard.SetClipboardData(win32con.CF_UNICODETEXT, text)
             win32clipboard.CloseClipboard()
             
-            # Небольшая задержка для надежности
-            time.sleep(0.05)
+            # Увеличиваем задержку для надежности
+            time.sleep(0.2)
             
-            # Вставляем через Ctrl+V
-            if not self.send_key_combination(0x56, ctrl=True):  # VK_V = 0x56
-                logger.warning("Не удалось отправить Ctrl+V для вставки текста")
-                return False
+            # Пробуем вставить через pyautogui (более надежно)
+            success = False
+            try:
+                import pyautogui
+                pyautogui.hotkey('ctrl', 'v')
+                time.sleep(0.1)
+                success = True
+                logger.debug(f"Текст вставлен через pyautogui: {repr(text)}")
+            except ImportError:
+                logger.debug("pyautogui не установлен, пробуем через SendInput")
+            except Exception as e:
+                logger.debug(f"PyAutoGUI не смог вставить текст: {e}")
             
-            # Восстанавливаем буфер обмена через небольшую задержку
-            time.sleep(0.1)
+            # Если pyautogui не сработал, пробуем через SendInput
+            if not success:
+                if self.send_key_combination(0x56, ctrl=True):  # VK_V = 0x56
+                    success = True
+                    logger.debug(f"Текст вставлен через SendInput: {repr(text)}")
+                else:
+                    logger.warning("Не удалось автоматически вставить текст через SendInput")
+            
+            # Восстанавливаем буфер обмена через задержку
+            time.sleep(0.2)
             if old_data is not None:
                 try:
                     win32clipboard.OpenClipboard()
                     win32clipboard.EmptyClipboard()
-                    win32clipboard.SetClipboardData(win32con.CF_TEXT, old_data)
+                    win32clipboard.SetClipboardData(win32con.CF_UNICODETEXT, old_data)
                     win32clipboard.CloseClipboard()
                 except:
                     pass
             
-            logger.debug(f"Текст отправлен через буфер обмена: {repr(text)}")
-            return True
+            if success:
+                logger.debug(f"Текст успешно отправлен через буфер обмена: {repr(text)}")
+            else:
+                logger.warning(f"Текст скопирован в буфер обмена, но автоматическая вставка не удалась. Нажмите Ctrl+V вручную. Текст: {repr(text)}")
+            
+            return success
+            
         except ImportError:
             logger.warning("pywin32 не установлен, используем прямой ввод")
             return False
@@ -189,6 +215,19 @@ class TextInput:
         Returns:
             True если успешно, False иначе
         """
+        # Для Ctrl+V пробуем сначала через pyautogui (более надежно)
+        if ctrl and vk_code == 0x56:  # Ctrl+V
+            try:
+                import pyautogui
+                pyautogui.hotkey('ctrl', 'v')
+                time.sleep(0.05)
+                logger.debug("Ctrl+V отправлен через pyautogui")
+                return True
+            except ImportError:
+                logger.debug("pyautogui не установлен, используем SendInput")
+            except Exception as e:
+                logger.debug(f"PyAutoGUI не смог отправить Ctrl+V: {e}")
+        
         inputs = []
         
         # Модификаторы - нажатие
@@ -221,7 +260,7 @@ class TextInput:
         if result != len(inputs):
             error_code = self.get_last_error()
             if error_code != 0:
-                logger.warning(f"Не удалось отправить комбинацию клавиш. SendInput вернул: {result}, GetLastError: {error_code}")
+                logger.debug(f"SendInput вернул: {result}, GetLastError: {error_code}")
             return False
         
         return True

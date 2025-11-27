@@ -42,6 +42,7 @@ class VoiceInputApp:
         self.voice_commands = VoiceCommands(self.config.voice_commands)
         self.system_tray = None
         self.hotkey_manager = HotkeyManager()
+        self.settings_window_open = False
         
         self.is_active = False
         self.is_paused = False
@@ -61,22 +62,13 @@ class VoiceInputApp:
             self.system_tray = SystemTray(
                 on_toggle=self.toggle,
                 on_exit=self.shutdown,
-                on_settings=None  # Можно добавить позже
+                on_settings=self.open_settings
             )
             self.system_tray.start()
             
             # Инициализация горячих клавиш
             self.hotkey_manager.start()
-            self.hotkey_manager.register_hotkey(
-                self.config.hotkey_toggle,
-                self.toggle,
-                "Включить/выключить"
-            )
-            self.hotkey_manager.register_hotkey(
-                self.config.hotkey_pause,
-                self.pause,
-                "Пауза"
-            )
+            self._register_hotkeys()
             
             # Инициализация распознавания речи
             model_path = Path(self.config.vosk_model_path)
@@ -246,6 +238,96 @@ class VoiceInputApp:
         except Exception as e:
             logger.error(f"Критическая ошибка: {e}", exc_info=True)
             self.shutdown()
+
+    def _register_hotkeys(self):
+        """Регистрация горячих клавиш согласно текущей конфигурации."""
+        self.hotkey_manager.register_hotkey(
+            self.config.hotkey_toggle,
+            self.toggle,
+            "Включить/выключить"
+        )
+        self.hotkey_manager.register_hotkey(
+            self.config.hotkey_pause,
+            self.pause,
+            "Пауза"
+        )
+
+    def open_settings(self):
+        """Открытие окна настроек горячих клавиш и метода ввода."""
+        if self.settings_window_open:
+            logger.info("Окно настроек уже открыто")
+            return
+
+        def _show_settings():
+            try:
+                import tkinter as tk
+                from tkinter import ttk, messagebox
+            except ImportError:
+                logger.error("Tkinter недоступен, окно настроек открыть нельзя")
+                return
+
+            self.settings_window_open = True
+
+            root = tk.Tk()
+            root.title("Настройки горячих клавиш")
+            root.resizable(False, False)
+
+            def on_close():
+                self.settings_window_open = False
+                root.destroy()
+
+            root.protocol("WM_DELETE_WINDOW", on_close)
+
+            tk.Label(root, text="Включение/выключение:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+            toggle_var = tk.StringVar(value=self.config.hotkey_toggle)
+            tk.Entry(root, textvariable=toggle_var, width=20).grid(row=0, column=1, padx=10, pady=5)
+
+            tk.Label(root, text="Пауза:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+            pause_var = tk.StringVar(value=self.config.hotkey_pause)
+            tk.Entry(root, textvariable=pause_var, width=20).grid(row=1, column=1, padx=10, pady=5)
+
+            tk.Label(root, text="Метод ввода:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+            method_var = tk.StringVar(value=self.config.input_method)
+            ttk.Combobox(
+                root,
+                textvariable=method_var,
+                values=("clipboard", "typing"),
+                state="readonly",
+                width=17
+            ).grid(row=2, column=1, padx=10, pady=5)
+
+            def save_settings():
+                new_toggle = toggle_var.get().strip()
+                new_pause = pause_var.get().strip()
+                new_method = method_var.get().strip()
+
+                if not new_toggle or not new_pause:
+                    messagebox.showerror("Ошибка", "Горячие клавиши не должны быть пустыми.")
+                    return
+
+                try:
+                    self.config.set("hotkeys.toggle", new_toggle)
+                    self.config.set("hotkeys.pause", new_pause)
+                    self.config.set("input.method", new_method)
+                    self.text_input.input_method = new_method
+
+                    self.hotkey_manager.unregister_all()
+                    self._register_hotkeys()
+
+                    messagebox.showinfo("Готово", "Настройки сохранены.")
+                    on_close()
+                except Exception as e:
+                    messagebox.showerror("Ошибка", f"Не удалось сохранить настройки: {e}")
+
+            button_frame = tk.Frame(root)
+            button_frame.grid(row=3, column=0, columnspan=2, pady=10)
+
+            tk.Button(button_frame, text="Сохранить", command=save_settings, width=12).pack(side=tk.LEFT, padx=5)
+            tk.Button(button_frame, text="Отмена", command=on_close, width=12).pack(side=tk.LEFT, padx=5)
+
+            root.mainloop()
+
+        threading.Thread(target=_show_settings, daemon=True).start()
 
 def main():
     """Точка входа в приложение."""

@@ -1,0 +1,31 @@
+{
+  "audio": {
+    "sample_rate": 16000,
+    "chunk_size": 4000,
+    "channels": 1
+  },
+  "vosk": {
+    "model_path": "models/vosk-model-small-ru-0.22",
+    "language": "ru",
+    "words": true,
+    "partial_words": true
+  },
+  "hotkeys": {
+    "toggle": "win+h",
+    "pause": "ctrl+shift+p"
+  },
+  "voice_commands": {
+    "запятая": ",",
+    "точка": ".",
+    "восклицательный знак": "!",
+    "вопросительный знак": "?",
+    "двоеточие": ":",
+    "точка с запятой": ";",
+    "новая строка": "\n",
+    "абзац": "\n\n",
+    "пробел": " "
+  },
+  "auto_start": false,
+  "log_level": "INFO"
+}
+

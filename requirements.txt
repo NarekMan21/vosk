@@ -1,0 +1,7 @@
+PyAudio==0.2.14
+vosk==0.3.45
+pywin32>=306
+pystray==0.19.5
+keyboard==0.13.5
+Pillow>=10.1.0
+

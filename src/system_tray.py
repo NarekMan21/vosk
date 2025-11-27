@@ -25,12 +25,26 @@ class SystemTray:
         self.on_settings = on_settings
         self.icon = None
         self.is_active = False
-        self._create_icon()
+        self.is_paused = False
+        self.icon_image = self._create_icon('stopped')
     
-    def _create_icon(self):
-        """Создание иконки для системного трея."""
-        # Создаем простую иконку с микрофоном
-        image = Image.new('RGB', (64, 64), color='white')
+    def _create_icon(self, state='stopped'):
+        """
+        Создание иконки для системного трея.
+        
+        Args:
+            state: 'active' - зеленый, 'paused' - оранжевый, 'stopped' - белый
+        """
+        # Определяем цвет фона в зависимости от состояния
+        if state == 'active':
+            bg_color = 'green'
+        elif state == 'paused':
+            bg_color = 'orange'
+        else:  # stopped
+            bg_color = 'white'
+        
+        # Создаем иконку с микрофоном
+        image = Image.new('RGB', (64, 64), color=bg_color)
         draw = ImageDraw.Draw(image)
         
         # Рисуем простой микрофон
@@ -41,7 +55,18 @@ class SystemTray:
         # Ножка
         draw.rectangle([30, 50, 34, 55], fill='black')
         
-        self.icon_image = image
+        return image
+    
+    def update_icon(self, state='stopped'):
+        """
+        Обновление иконки в зависимости от состояния.
+        
+        Args:
+            state: 'active' - зеленый, 'paused' - оранжевый, 'stopped' - белый
+        """
+        if self.icon:
+            new_image = self._create_icon(state)
+            self.icon.icon = new_image
     
     def _create_menu(self):
         """Создание контекстного меню."""
@@ -86,19 +111,31 @@ class SystemTray:
         if self.on_settings:
             self.on_settings()
     
-    def set_active(self, active):
+    def set_active(self, active, paused=False):
         """
         Установка состояния активности.
         
         Args:
             active: True если активно, False иначе
+            paused: True если на паузе, False иначе
         """
         self.is_active = active
+        self.is_paused = paused
+        
         if self.icon:
             # Обновляем меню
             self.icon.menu = self._create_menu()
-            # Можно изменить иконку в зависимости от состояния
-            # Например, сделать ее зеленой когда активно
+            
+            # Определяем состояние для иконки
+            if active and not paused:
+                state = 'active'
+            elif active and paused:
+                state = 'paused'
+            else:
+                state = 'stopped'
+            
+            # Обновляем иконку
+            self.update_icon(state)
     
     def start(self):
         """Запуск иконки в системном трее."""

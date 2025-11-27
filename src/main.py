@@ -121,7 +121,7 @@ class VoiceInputApp:
             
             # Обновление иконки
             if self.system_tray:
-                self.system_tray.set_active(True)
+                self.system_tray.set_active(True, False)
                 self.system_tray.update_tooltip("Голосовой ввод: Активен")
             
             # Запуск потока обработки
@@ -150,7 +150,7 @@ class VoiceInputApp:
         
         # Обновление иконки
         if self.system_tray:
-            self.system_tray.set_active(False)
+            self.system_tray.set_active(False, False)
             self.system_tray.update_tooltip("Голосовой ввод: Неактивен")
         
         logger.info("Голосовой ввод остановлен")
@@ -165,6 +165,7 @@ class VoiceInputApp:
         logger.info(f"Голосовой ввод {status}")
         
         if self.system_tray:
+            self.system_tray.set_active(True, self.is_paused)
             tooltip = f"Голосовой ввод: {'Приостановлен' if self.is_paused else 'Активен'}"
             self.system_tray.update_tooltip(tooltip)
     

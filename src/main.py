@@ -5,10 +5,18 @@ import sys
 import logging
 import threading
 import time
+import os
 from pathlib import Path
 
 # Добавляем путь к модулям
-sys.path.insert(0, str(Path(__file__).parent))
+# В exe файле __file__ указывает на временную директорию PyInstaller
+if getattr(sys, 'frozen', False):
+    # Запущено как .exe
+    # Модули должны быть в sys.path автоматически благодаря pathex в spec
+    pass
+else:
+    # Запущено как скрипт
+    sys.path.insert(0, str(Path(__file__).parent))
 
 from config import Config
 from audio_capture import AudioCapture
@@ -18,12 +26,34 @@ from voice_commands import VoiceCommands
 from system_tray import SystemTray
 from hotkey_manager import HotkeyManager
 
+
+def get_base_path():
+    """
+    Определяет базовую директорию приложения.
+    Работает как при запуске из скрипта, так и из .exe файла.
+    """
+    if getattr(sys, 'frozen', False):
+        # Запущено как .exe (PyInstaller)
+        # sys._MEIPASS - временная директория с распакованными файлами
+        # sys.executable - путь к .exe файлу
+        base_path = Path(sys.executable).parent
+    else:
+        # Запущено как скрипт
+        base_path = Path(__file__).parent.parent
+    
+    return base_path
+
+
+# Определяем базовую директорию
+BASE_PATH = get_base_path()
+
 # Настройка логирования
+log_file = BASE_PATH / 'voice_input.log'
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('voice_input.log', encoding='utf-8'),
+        logging.FileHandler(str(log_file), encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -35,7 +65,9 @@ class VoiceInputApp:
     
     def __init__(self):
         """Инициализация приложения."""
-        self.config = Config()
+        # Используем базовую директорию для поиска config.json
+        config_path = BASE_PATH / 'config.json'
+        self.config = Config(str(config_path))
         self.audio_capture = None
         self.speech_recognition = None
         self.text_input = TextInput(self.config.input_method)
@@ -73,8 +105,21 @@ class VoiceInputApp:
             # Инициализация распознавания речи
             model_path = Path(self.config.vosk_model_path)
             if not model_path.is_absolute():
-                model_path = Path(__file__).parent.parent / model_path
+                # Ищем модель относительно базовой директории
+                # В exe файле модель будет в той же директории что и exe
+                model_path = BASE_PATH / model_path
+                
+                # Если не найдено, пробуем в sys._MEIPASS (для PyInstaller)
+                if not model_path.exists() and hasattr(sys, '_MEIPASS'):
+                    model_path = Path(sys._MEIPASS) / self.config.vosk_model_path
             
+            if not model_path.exists():
+                raise FileNotFoundError(
+                    f"Модель Vosk не найдена по пути: {model_path}\n"
+                    f"Убедитесь, что модель находится в директории: {BASE_PATH / 'models'}"
+                )
+            
+            logger.info(f"Используется модель: {model_path}")
             self.speech_recognition = SpeechRecognition(
                 str(model_path),
                 self.config.audio_sample_rate,

@@ -16,9 +16,16 @@ class Config:
         Инициализация конфигурации.
         
         Args:
-            config_path: Путь к файлу конфигурации
+            config_path: Путь к файлу конфигурации (может быть относительным или абсолютным)
         """
         self.config_path = Path(config_path)
+        # Если путь относительный и файл не найден, пробуем найти в текущей директории
+        if not self.config_path.is_absolute() and not self.config_path.exists():
+            # Пробуем найти в текущей рабочей директории
+            current_dir = Path.cwd() / self.config_path
+            if current_dir.exists():
+                self.config_path = current_dir
+        
         self.config = self._load_config()
     
     def _load_config(self):

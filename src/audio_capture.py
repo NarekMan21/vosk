@@ -227,11 +227,8 @@ class AudioCapture:
         """
         Исправление кодировки названия устройства.
         
-        PyAudio на Windows использует MME API, который возвращает названия 
-        в системной кодировке (CP1251 для русской Windows). Однако PyAudio
-        может некорректно декодировать эти байты в Python строку.
-        
-        Пробуем несколько стратегий перекодирования.
+        PyAudio на Windows может возвращать названия устройств с некорректной
+        кодировкой. Пробуем несколько стратегий перекодирования.
         
         Args:
             name: Название устройства от PyAudio
@@ -242,47 +239,49 @@ class AudioCapture:
         if not name:
             return 'Unknown'
         
-        # Если строка уже выглядит нормально (только ASCII или правильная кириллица)
-        try:
-            # Проверяем, есть ли проблемные символы
-            name.encode('cp1251')
-            # Если успешно — строка уже в порядке
-            if all(ord(c) < 128 or (0x0400 <= ord(c) <= 0x04FF) for c in name):
-                return name
-        except UnicodeEncodeError:
-            pass
+        # Проверяем, выглядит ли строка уже нормально
+        # (только ASCII или правильная кириллица без артефактов)
+        has_cyrillic = any(0x0400 <= ord(c) <= 0x04FF for c in name)
+        has_weird_chars = any(ord(c) > 127 and not (0x0400 <= ord(c) <= 0x04FF) for c in name)
         
-        # Стратегия 1: Latin-1 → CP1251 (классический случай)
+        if has_cyrillic and not has_weird_chars:
+            # Строка уже содержит нормальную кириллицу
+            return name
+        
+        if not has_weird_chars and all(ord(c) < 128 for c in name):
+            # Только ASCII — возвращаем как есть
+            return name
+        
+        # Стратегия 1: CP1251 → UTF-8 (UTF-8 байты интерпретированы как CP1251)
+        # Это похоже на текущую проблему судя по скриншоту
         try:
-            fixed = name.encode('latin-1').decode('cp1251')
-            # Проверяем что результат содержит кириллицу
-            if any(0x0400 <= ord(c) <= 0x04FF for c in fixed):
+            raw_bytes = name.encode('cp1251')
+            fixed = raw_bytes.decode('utf-8')
+            if fixed and not any(ord(c) > 0xFFFF for c in fixed):
                 return fixed
         except (UnicodeDecodeError, UnicodeEncodeError):
             pass
         
-        # Стратегия 2: CP1252 → CP1251
+        # Стратегия 2: Latin-1 → UTF-8
         try:
-            fixed = name.encode('cp1252').decode('cp1251')
-            if any(0x0400 <= ord(c) <= 0x04FF for c in fixed):
-                return fixed
-        except (UnicodeDecodeError, UnicodeEncodeError):
-            pass
-        
-        # Стратегия 3: UTF-8 байты неправильно интерпретированы как Latin-1
-        try:
-            # Если PyAudio вернул UTF-8 байты как Latin-1 строку
             raw_bytes = name.encode('latin-1')
             fixed = raw_bytes.decode('utf-8')
             return fixed
         except (UnicodeDecodeError, UnicodeEncodeError):
             pass
         
-        # Стратегия 4: Строка уже в UTF-8, но с проблемами
+        # Стратегия 3: Latin-1 → CP1251 (классический случай)
         try:
-            raw_bytes = name.encode('utf-8')
-            fixed = raw_bytes.decode('cp1251', errors='replace')
-            if '?' not in fixed and 'Р' not in fixed:  # Признак неправильной декодировки
+            fixed = name.encode('latin-1').decode('cp1251')
+            if any(0x0400 <= ord(c) <= 0x04FF for c in fixed):
+                return fixed
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            pass
+        
+        # Стратегия 4: CP1252 → CP1251
+        try:
+            fixed = name.encode('cp1252').decode('cp1251')
+            if any(0x0400 <= ord(c) <= 0x04FF for c in fixed):
                 return fixed
         except (UnicodeDecodeError, UnicodeEncodeError):
             pass

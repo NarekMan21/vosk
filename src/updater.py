@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Настройки GitHub репозитория
 GITHUB_REPO = "NarekMan21/vosk"
-CURRENT_VERSION = "1.0.3"
+CURRENT_VERSION = "1.0.4"
 
 
 def get_releases_url(repo: str) -> str:

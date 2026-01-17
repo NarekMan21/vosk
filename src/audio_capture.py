@@ -86,7 +86,9 @@ class AudioCapture:
                     device_info = self.audio.get_device_info_by_index(self.device_index)
                 else:
                     device_info = self.audio.get_default_input_device_info()
-                logger.info(f"Используется устройство ввода: {device_info['name']}")
+                # Исправляем кодировку названия устройства для корректного отображения
+                device_name = AudioCapture._fix_device_name(device_info.get('name', 'Unknown'))
+                logger.info(f"Используется устройство ввода: {device_name}")
             except OSError as e:
                 error_msg = f"Микрофон не найден: {e}"
                 logger.error(error_msg)
@@ -221,6 +223,33 @@ class AudioCapture:
                     pass
     
     @staticmethod
+    def _fix_device_name(name: str) -> str:
+        """
+        Исправление кодировки названия устройства.
+        
+        PyAudio на Windows возвращает названия устройств в кодировке CP1251,
+        но Python интерпретирует их как Latin-1, что приводит к "иероглифам".
+        Эта функция корректно перекодирует строку.
+        
+        Args:
+            name: Название устройства от PyAudio
+        
+        Returns:
+            Правильно декодированное название
+        """
+        if not name:
+            return 'Unknown'
+        
+        try:
+            # PyAudio возвращает строку, которая была декодирована как Latin-1
+            # Нужно закодировать обратно в Latin-1 и декодировать как CP1251
+            fixed_name = name.encode('latin-1').decode('cp1251')
+            return fixed_name
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            # Если не получилось — возвращаем как есть
+            return name
+    
+    @staticmethod
     def list_devices():
         """
         Получить список доступных устройств ввода.
@@ -236,9 +265,13 @@ class AudioCapture:
                 try:
                     info = audio.get_device_info_by_index(i)
                     if info.get('maxInputChannels', 0) > 0:
+                        # Исправляем кодировку названия устройства
+                        raw_name = info.get('name', 'Unknown')
+                        fixed_name = AudioCapture._fix_device_name(raw_name)
+                        
                         devices.append({
                             'index': i,
-                            'name': info.get('name', 'Unknown'),
+                            'name': fixed_name,
                             'sample_rate': int(info.get('defaultSampleRate', 16000)),
                             'channels': info.get('maxInputChannels', 1)
                         })

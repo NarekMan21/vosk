@@ -13,7 +13,8 @@
   },
   "hotkeys": {
     "toggle": "win+h",
-    "pause": "ctrl+shift+o"
+    "pause": "ctrl+shift+o",
+    "hold_mode": false
   },
   "input": {
     "method": "typing"
@@ -38,5 +39,7 @@
     "sound_enabled": true
   },
   "auto_start": false,
-  "log_level": "INFO"
+  "log_level": "INFO",
+  "tutorial_shown": false,
+  "check_updates": true
 }

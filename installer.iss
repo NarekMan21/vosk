@@ -2,9 +2,9 @@
 ; Скомпилировать через Inno Setup Compiler
 
 #define MyAppName "VoiceInput"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "VoiceInput"
-#define MyAppURL "https://github.com/your-repo/voiceinput"
+#define MyAppURL "https://github.com/NarekMan21/vosk"
 #define MyAppExeName "VoiceInput.exe"
 
 [Setup]

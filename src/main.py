@@ -98,11 +98,7 @@ class VoiceInputApp:
             )
             self.system_tray.start()
             
-            # Инициализация горячих клавиш
-            self.hotkey_manager.start()
-            self._register_hotkeys()
-            
-            # Инициализация распознавания речи
+            # Инициализация распознавания речи (ДО регистрации горячих клавиш!)
             model_path = Path(self.config.vosk_model_path)
             if not model_path.is_absolute():
                 # Ищем модель относительно базовой директории
@@ -126,6 +122,10 @@ class VoiceInputApp:
                 words=self.config.vosk_words,
                 partial_words=self.config.vosk_partial_words
             )
+            
+            # Инициализация горячих клавиш ПОСЛЕ загрузки модели
+            self.hotkey_manager.start()
+            self._register_hotkeys()
             
             logger.info("Инициализация завершена")
             
@@ -216,6 +216,11 @@ class VoiceInputApp:
     
     def _process_audio(self):
         """Обработка аудиопотока в отдельном потоке."""
+        if not self.speech_recognition:
+            logger.error("Распознавание речи не инициализировано!")
+            self.stop()
+            return
+        
         last_final_text = ""
         
         while self.is_active and self.running:
@@ -242,12 +247,19 @@ class VoiceInputApp:
                             # Можно добавить логику удаления, но это сложно
                             pass
                         
+                        # Сохраняем текст ДО добавления пробела для корректного сравнения в следующей итерации
+                        last_final_text = processed_text
+                        
                         # Вводим текст
                         if processed_text:
+                            # Добавляем пробел в конце, если текст не заканчивается на пробел или перевод строки
+                            if not processed_text.endswith((' ', '\n', '\r')):
+                                processed_text = processed_text + ' '
+                            
                             self.text_input.send_text(processed_text)
-                            logger.info(f"Введен текст: {repr(processed_text)}")
-                        
-                        last_final_text = processed_text
+                            # Безопасное логирование текста
+                            text_preview = processed_text[:100] + ('...' if len(processed_text) > 100 else '')
+                            logger.info(f"Введен текст: '{text_preview}' (длина: {len(processed_text)} символов)")
                     # Частичные результаты можно использовать для отображения в UI
                 
             except Exception as e:

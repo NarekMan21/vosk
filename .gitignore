@@ -38,8 +38,11 @@ ENV/
 voice_input.log
 
 # Models (большие файлы)
-models/*/
-!models/.gitkeep
+models/
+*.zip
+
+# Executable files (большие)
+*.exe
 
 # Config (может содержать персональные настройки)
 # config.json

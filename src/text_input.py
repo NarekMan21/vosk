@@ -8,6 +8,40 @@ from ctypes import wintypes
 
 logger = logging.getLogger(__name__)
 
+def safe_text_repr(text, max_length=100):
+    """
+    Безопасное представление текста для логирования.
+    
+    Args:
+        text: Текст для представления
+        max_length: Максимальная длина для отображения
+        
+    Returns:
+        Строковое представление текста
+    """
+    if not text:
+        return "''"
+    
+    try:
+        # Используем repr для безопасного представления, но ограничиваем длину
+        if len(text) <= max_length:
+            # Для коротких текстов используем repr, но убираем лишние кавычки
+            text_repr = repr(text)
+            # repr уже добавляет кавычки, поэтому просто возвращаем
+            return text_repr
+        else:
+            # Для длинных текстов обрезаем и показываем длину
+            truncated = text[:max_length]
+            return f"{repr(truncated)}... (длина: {len(text)} символов)"
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # Если возникла ошибка кодировки, используем безопасное представление
+        safe_text = text.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+        if len(safe_text) <= max_length:
+            return repr(safe_text)
+        else:
+            truncated = safe_text[:max_length]
+            return f"{repr(truncated)}... (длина: {len(text)} символов)"
+
 # Константы Windows API
 INPUT_KEYBOARD = 1
 KEYEVENTF_KEYUP = 0x0002
@@ -132,11 +166,11 @@ class TextInput:
             # Метод 1: keyboard библиотека (самый надежный, работает как typing)
             try:
                 import keyboard
-                logger.info(f"Попытка вставить текст через keyboard: {repr(text)}")
+                logger.info(f"Попытка вставить текст через keyboard: {safe_text_repr(text)}")
                 keyboard.send('ctrl+v', do_press=True, do_release=True)
                 time.sleep(0.15)  # Даем время на вставку
                 success = True
-                logger.info(f"Текст успешно вставлен через keyboard: {repr(text)}")
+                logger.info(f"Текст успешно вставлен через keyboard: {safe_text_repr(text)}")
             except ImportError:
                 logger.warning("keyboard не установлен, пробуем другие методы")
             except Exception as e:
@@ -146,11 +180,11 @@ class TextInput:
             if not success:
                 try:
                     import pyautogui
-                    logger.info(f"Попытка вставить текст через pyautogui: {repr(text)}")
+                    logger.info(f"Попытка вставить текст через pyautogui: {safe_text_repr(text)}")
                     pyautogui.hotkey('ctrl', 'v')
                     time.sleep(0.15)
                     success = True
-                    logger.info(f"Текст успешно вставлен через pyautogui: {repr(text)}")
+                    logger.info(f"Текст успешно вставлен через pyautogui: {safe_text_repr(text)}")
                 except ImportError:
                     logger.warning("pyautogui не установлен, пробуем SendInput")
                 except Exception as e:
@@ -161,7 +195,7 @@ class TextInput:
                 logger.info("Попытка вставить текст через SendInput")
                 if self.send_key_combination(0x56, ctrl=True):  # VK_V = 0x56
                     success = True
-                    logger.info(f"Текст вставлен через SendInput: {repr(text)}")
+                    logger.info(f"Текст вставлен через SendInput: {safe_text_repr(text)}")
                 else:
                     logger.warning("Не удалось автоматически вставить текст через SendInput")
             
@@ -182,9 +216,9 @@ class TextInput:
                         pass
             
             if success:
-                logger.info(f"Текст успешно отправлен через буфер обмена: {repr(text)}")
+                logger.info(f"Текст успешно отправлен через буфер обмена: {safe_text_repr(text)}")
             else:
-                logger.warning(f"Текст скопирован в буфер обмена, но автоматическая вставка не удалась. Нажмите Ctrl+V вручную. Текст: {repr(text)}")
+                logger.warning(f"Текст скопирован в буфер обмена, но автоматическая вставка не удалась. Нажмите Ctrl+V вручную. Текст: {safe_text_repr(text)}")
             
             return success
             
@@ -207,7 +241,7 @@ class TextInput:
         
         try:
             import keyboard
-            logger.info(f"Ввод текста через typing: {repr(text)}")
+            logger.info(f"Ввод текста через typing: {safe_text_repr(text)}")
             keyboard.write(text, delay=0.02)
             return True
         except ImportError:
@@ -251,9 +285,9 @@ class TextInput:
                 time.sleep(0.01)
             
             if success_count > 0:
-                logger.debug(f"Текст отправлен: {repr(text)} ({success_count}/{len(text)} символов)")
+                logger.debug(f"Текст отправлен: {safe_text_repr(text)} ({success_count}/{len(text)} символов)")
             else:
-                logger.warning(f"Не удалось отправить текст: {repr(text)}. Убедитесь, что активное окно принимает ввод текста.")
+                logger.warning(f"Не удалось отправить текст: {safe_text_repr(text)}. Убедитесь, что активное окно принимает ввод текста.")
         except Exception as e:
             logger.error(f"Ошибка при отправке текста: {e}", exc_info=True)
     

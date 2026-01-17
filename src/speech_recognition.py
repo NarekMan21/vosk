@@ -4,6 +4,7 @@
 import json
 import logging
 import os
+import time
 from pathlib import Path
 import vosk
 
@@ -140,4 +141,3 @@ class SpeechRecognition:
             text, is_final = self.recognize_chunk(audio_chunk)
             if text:
                 yield text, is_final
-

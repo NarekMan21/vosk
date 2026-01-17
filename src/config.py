@@ -54,7 +54,7 @@ class Config:
                 "channels": 1
             },
             "vosk": {
-                "model_path": "models/vosk-model-small-ru-0.22",
+                "model_path": "models/vosk-model-ru-0.42",
                 "language": "ru"
             },
             "hotkeys": {
@@ -154,7 +154,7 @@ class Config:
     @property
     def vosk_model_path(self):
         """Путь к модели Vosk."""
-        return self.get("vosk.model_path", "models/vosk-model-small-ru-0.22")
+        return self.get("vosk.model_path", "models/vosk-model-ru-0.42")
     
     @property
     def vosk_words(self):

@@ -18,10 +18,10 @@ if errorlevel 1 (
 )
 
 REM Проверка наличия модели
-if not exist "models\vosk-model-small-ru-0.22" (
+if not exist "models\vosk-model-ru-0.42" (
     echo.
     echo ВНИМАНИЕ: Модель Vosk не найдена!
-    echo Убедитесь, что модель находится в models\vosk-model-small-ru-0.22
+    echo Убедитесь, что модель находится в models\vosk-model-ru-0.42
     echo.
     pause
 )

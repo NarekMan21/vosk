@@ -635,6 +635,15 @@ class VoiceInputApp:
             root = tk.Tk()
             root.title("Настройки VoiceInput")
             root.resizable(False, False)
+            
+            # Применяем тему
+            is_dark = self.config.get("dark_theme", True)
+            try:
+                from themes import apply_theme, style_tk_widget, DARK_THEME, LIGHT_THEME
+                current_theme = apply_theme(root, dark=is_dark)
+            except Exception as e:
+                logger.debug(f"Не удалось применить тему: {e}")
+                current_theme = None
 
             def on_close():
                 self.settings_window_open = False
@@ -840,9 +849,9 @@ class VoiceInputApp:
                 
                 checker = UpdateChecker(CURRENT_VERSION, GITHUB_REPO)
                 
-                def on_result(has_update, version, url, notes):
+                def on_result(has_update, version, url, notes, installer_url=None):
                     if has_update:
-                        checker.show_update_dialog(version, url, notes)
+                        checker.show_update_dialog(version, url, notes, installer_url)
                     else:
                         messagebox.showinfo(
                             "Обновления", 
@@ -852,11 +861,19 @@ class VoiceInputApp:
                 checker.check_for_updates(on_result=on_result, silent=False)
                 messagebox.showinfo("Проверка", "Проверка обновлений запущена...")
             
+            # Тёмная тема
+            dark_theme_var = tk.BooleanVar(value=self.config.get("dark_theme", True))
+            ttk.Checkbutton(
+                system_frame,
+                text="Тёмная тема",
+                variable=dark_theme_var
+            ).grid(row=2, column=0, padx=5, pady=2, sticky="w")
+            
             tk.Button(
                 system_frame,
                 text="🔄 Проверить обновления",
                 command=manual_check_updates
-            ).grid(row=2, column=0, padx=5, pady=5, sticky="w")
+            ).grid(row=3, column=0, padx=5, pady=5, sticky="w")
 
             def save_settings():
                 new_toggle = toggle_var.get().strip()
@@ -922,8 +939,12 @@ class VoiceInputApp:
                     
                     # Проверка обновлений
                     self.config.set("check_updates", new_check_updates)
+                    
+                    # Тёмная тема
+                    new_dark_theme = dark_theme_var.get()
+                    self.config.set("dark_theme", new_dark_theme)
 
-                    messagebox.showinfo("Готово", "Настройки сохранены.\nИзменения применятся при следующем запуске распознавания.")
+                    messagebox.showinfo("Готово", "Настройки сохранены.\nИзменения применятся при следующем запуске.")
                     on_close()
                 except Exception as e:
                     messagebox.showerror("Ошибка", f"Не удалось сохранить настройки: {e}")

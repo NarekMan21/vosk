@@ -145,7 +145,8 @@ class Config:
             "auto_start": False,
             "log_level": "INFO",
             "tutorial_shown": False,
-            "check_updates": True
+            "check_updates": True,
+            "dark_theme": True  # Тёмная тема по умолчанию
         }
     
     def _save_config(self, config=None):

@@ -33,7 +33,7 @@ from notifications import Notifications
 from audio_feedback import AudioFeedback
 from vad import VoiceActivityDetector
 from autostart import is_autostart_enabled, set_autostart
-from statistics import Statistics
+from app_statistics import Statistics
 from model_manager import ModelManager
 
 

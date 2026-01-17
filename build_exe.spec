@@ -20,6 +20,14 @@ print(f"Найдено скрытых импортов PIL: {len(pil_hiddenimpor
 pystray_datas, pystray_binaries, pystray_hiddenimports = collect_all('pystray')
 print(f"Найдено скрытых импортов pystray: {len(pystray_hiddenimports)}")
 
+# Собираем зависимости win11toast
+try:
+    win11toast_datas, win11toast_binaries, win11toast_hiddenimports = collect_all('win11toast')
+    print(f"Найдено скрытых импортов win11toast: {len(win11toast_hiddenimports)}")
+except Exception:
+    win11toast_datas, win11toast_binaries, win11toast_hiddenimports = [], [], []
+    print("win11toast: зависимости не найдены (это нормально)")
+
 # Определяем пути к файлам
 base_path = Path('.').resolve()  # Абсолютный путь
 config_file = base_path / 'config.json'
@@ -50,8 +58,8 @@ print(f"Существует src: {src_dir.exists()}")
 a = Analysis(
     [str(base_path / 'src' / 'main.py')],  # Абсолютный путь к main.py
     pathex=[str(src_dir)],  # Добавляем src в путь поиска модулей
-    binaries=vosk_binaries + pil_binaries + pystray_binaries,  # Включаем DLL файлы
-    datas=datas + vosk_datas + pil_datas + pystray_datas,  # Включаем данные
+    binaries=vosk_binaries + pil_binaries + pystray_binaries + win11toast_binaries,  # Включаем DLL файлы
+    datas=datas + vosk_datas + pil_datas + pystray_datas + win11toast_datas,  # Включаем данные
     hiddenimports=[
         'pystray._win32',
         'keyboard',
@@ -60,6 +68,10 @@ a = Analysis(
         'vosk._vosk',
         'vosk.vosk_cffi',
         'vosk.transcriber',
+        'webrtcvad',
+        'win11toast',
+        'winsound',
+        'winreg',
         # Pillow (PIL) для работы с иконками - все зависимости собираются через collect_all
         # Явно указываем все модули из src
         'config',
@@ -69,7 +81,13 @@ a = Analysis(
         'voice_commands',
         'system_tray',
         'hotkey_manager',
-    ] + vosk_hiddenimports + pil_hiddenimports + pystray_hiddenimports,  # Добавляем все скрытые импорты
+        'notifications',
+        'audio_feedback',
+        'vad',
+        'app_statistics',
+        'autostart',
+        'model_manager',
+    ] + vosk_hiddenimports + pil_hiddenimports + pystray_hiddenimports + win11toast_hiddenimports,  # Добавляем все скрытые импорты
     hookspath=['.'],  # Ищем hooks в текущей директории
     hooksconfig={},
     runtime_hooks=[],
@@ -110,7 +128,7 @@ exe = EXE(
         'libwinpthread-1.dll',
     ],
     runtime_tmpdir=None,
-    console=True,  # Временно включаем консоль для отладки (потом можно вернуть False)
+    console=False,  # Без консоли для продакшена
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

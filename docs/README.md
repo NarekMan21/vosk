@@ -34,7 +34,26 @@
 
 ## Статус
 
-- ✅ `IMPROVEMENTS.md` — Создан
-- ✅ `IMPLEMENTATION_GUIDE.md` — Создан
-- ✅ `QUICK_REFERENCE.md` — Создан
+- ✅ `IMPROVEMENTS.md` — Создан, обновлён v1.0.1
+- ✅ `IMPLEMENTATION_GUIDE.md` — Создан, обновлён v1.0.1
+- ✅ `QUICK_REFERENCE.md` — Создан, обновлён v1.0.1
+- ✅ `AI_INSTRUCTIONS.md` — Обновлён v1.0.1
 - ⏳ `MODEL_OPTIMIZATION.md` — Будет создан в Волне 7
+
+## Версия 1.0.1 (Январь 2026)
+
+### Новые функции:
+- ✅ **#23 Туториал** — Инструкция при первом запуске
+- ✅ **#24 Автообновление** — Проверка новых версий на GitHub
+- ✅ **#25 Hold mode** — Режим зажатия горячих клавиш (push-to-talk)
+- ✅ **#26 Баг настроек** — Исправлено открытие окна настроек
+- ✅ **#27 Инсталлятор** — Профессиональный установщик Inno Setup
+
+### Новые файлы:
+- `src/first_run.py` — Модуль туториала
+- `src/updater.py` — Модуль проверки обновлений
+- `installer.iss` — Скрипт инсталлятора
+- `build_installer.bat` — Сборка инсталлятора
+
+### Релиз:
+- GitHub: https://github.com/NarekMan21/vosk/releases/tag/v1.0.1

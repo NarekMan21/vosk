@@ -24,6 +24,47 @@ config_path: d:\cursor\audio\config.json
 ## CURRENT_TASK
 
 ```yaml
+wave: 10
+improvement: 27
+name: "Инсталлятор Inno Setup"
+status: COMPLETED
+last_completed: "2026-01-17"
+version: "1.0.1"
+```
+
+## COMPLETED IN v1.0.1
+
+```yaml
+improvements:
+  - id: 23
+    name: "Туториал первого запуска"
+    file: "src/first_run.py"
+    status: COMPLETED
+    
+  - id: 24
+    name: "Автопроверка обновлений"
+    file: "src/updater.py"
+    status: COMPLETED
+    
+  - id: 25
+    name: "Режим зажатия горячих клавиш"
+    files: ["src/hotkey_manager.py", "src/main.py"]
+    status: COMPLETED
+    
+  - id: 26
+    name: "Исправление бага настроек"
+    file: "src/main.py"
+    status: COMPLETED
+    
+  - id: 27
+    name: "Инсталлятор Inno Setup"
+    files: ["installer.iss", "build_installer.bat"]
+    status: COMPLETED
+```
+
+## NEXT_TASK (optional)
+
+```yaml
 wave: 1
 improvement: 1
 name: "Ротация логов"

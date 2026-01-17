@@ -23,9 +23,12 @@
 ├── #20 Скачивание моделей  └── #22 Простой UI настроек
 └── #21 Гибридная загрузка
 
-Волна 9: Документация
-├── #13 MODEL_OPTIMIZATION.md
-└── README обновление
+Волна 9: Документация       Волна 10: v1.0.1 ✅ ГОТОВО
+├── #13 MODEL_OPTIMIZATION  ├── #23 Туториал ✅
+└── README обновление       ├── #24 Автообновление ✅
+                            ├── #25 Hold mode ✅
+                            ├── #26 Баг настроек ✅
+                            └── #27 Инсталлятор ✅
 ```
 
 ## Критичные правила
@@ -39,29 +42,34 @@
 
 ## Файлы по улучшениям
 
-| # | Улучшение | Основной файл | Новые файлы |
-|---|-----------|---------------|-------------|
-| 1 | Ротация логов | main.py | - |
-| 2 | Single-instance | main.py | - |
-| 3 | Ошибки микрофона | audio_capture.py | - |
-| 4 | Reconnect | audio_capture.py | - |
-| 5 | Graceful shutdown | main.py | - |
-| 6 | Звуковая связь | main.py | audio_feedback.py |
-| 7 | Индикатор загрузки | system_tray.py | - |
-| 8 | Выбор микрофона | audio_capture.py, main.py | - |
-| 9 | Toast-уведомления | main.py | notifications.py |
-| 10 | Анимация трея | system_tray.py | - |
-| 11 | VAD | main.py | vad.py |
-| 12 | chunk_size | config.py | - |
-| 14 | Валидация конфига | config.py | - |
-| 15 | Атомарное сохранение | config.py | - |
-| 16 | Окно настроек | main.py | - |
-| 17 | Автозапуск | main.py | autostart.py |
-| 18 | Статистика | main.py | statistics.py |
-| 19 | Tooltip | system_tray.py | - |
-| 20 | Скачивание моделей | main.py | model_manager.py |
-| 21 | Гибридная загрузка | main.py, speech_recognition.py | - |
-| 22 | Простой UI | main.py | - |
+| # | Улучшение | Основной файл | Новые файлы | Статус |
+|---|-----------|---------------|-------------|--------|
+| 1 | Ротация логов | main.py | - | ⏳ |
+| 2 | Single-instance | main.py | - | ⏳ |
+| 3 | Ошибки микрофона | audio_capture.py | - | ⏳ |
+| 4 | Reconnect | audio_capture.py | - | ⏳ |
+| 5 | Graceful shutdown | main.py | - | ⏳ |
+| 6 | Звуковая связь | main.py | audio_feedback.py | ⏳ |
+| 7 | Индикатор загрузки | system_tray.py | - | ⏳ |
+| 8 | Выбор микрофона | audio_capture.py, main.py | - | ⏳ |
+| 9 | Toast-уведомления | main.py | notifications.py | ⏳ |
+| 10 | Анимация трея | system_tray.py | - | ⏳ |
+| 11 | VAD | main.py | vad.py | ⏳ |
+| 12 | chunk_size | config.py | - | ⏳ |
+| 14 | Валидация конфига | config.py | - | ⏳ |
+| 15 | Атомарное сохранение | config.py | - | ⏳ |
+| 16 | Окно настроек | main.py | - | ⏳ |
+| 17 | Автозапуск | main.py | autostart.py | ⏳ |
+| 18 | Статистика | main.py | statistics.py | ⏳ |
+| 19 | Tooltip | system_tray.py | - | ⏳ |
+| 20 | Скачивание моделей | main.py | model_manager.py | ⏳ |
+| 21 | Гибридная загрузка | main.py, speech_recognition.py | - | ⏳ |
+| 22 | Простой UI | main.py | - | ⏳ |
+| **23** | **Туториал** | **main.py** | **first_run.py** | ✅ |
+| **24** | **Автообновление** | **main.py** | **updater.py** | ✅ |
+| **25** | **Hold mode** | **main.py, hotkey_manager.py** | - | ✅ |
+| **26** | **Баг настроек** | **main.py** | - | ✅ |
+| **27** | **Инсталлятор** | **installer.iss** | **build_installer.bat** | ✅ |
 
 ## Новые зависимости
 

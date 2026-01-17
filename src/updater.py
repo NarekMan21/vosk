@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Настройки GitHub репозитория
 GITHUB_REPO = "NarekMan21/vosk"
-CURRENT_VERSION = "1.0.2"
+CURRENT_VERSION = "1.0.3"
 
 
 def get_releases_url(repo: str) -> str:
@@ -204,13 +204,19 @@ def check_updates_on_startup(config, notifications=None,
         current_version: Текущая версия
         github_repo: Репозиторий GitHub
     """
-    if not config.get("check_updates", True):
+    logger.info(f"Запуск проверки обновлений: версия={current_version}, репо={github_repo}")
+    
+    check_enabled = config.get("check_updates", True)
+    logger.info(f"Настройка check_updates: {check_enabled}")
+    
+    if not check_enabled:
         logger.info("Проверка обновлений отключена в настройках")
         return
     
     checker = UpdateChecker(current_version, github_repo)
     
     def on_result(has_update, version, url, notes):
+        logger.info(f"Результат проверки: has_update={has_update}, version={version}")
         if has_update:
             logger.info(f"Доступно обновление: {version}")
             if notifications:
@@ -219,5 +225,8 @@ def check_updates_on_startup(config, notifications=None,
                     f"🆕 Доступна версия {version}"
                 )
             checker.show_update_dialog(version, url, notes)
+        else:
+            logger.info("Обновлений не найдено или уже установлена последняя версия")
     
+    logger.info("Запускаем фоновую проверку обновлений...")
     checker.check_for_updates(on_result=on_result, silent=True)

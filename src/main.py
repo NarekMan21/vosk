@@ -825,6 +825,38 @@ class VoiceInputApp:
                 text="Запускать при старте Windows",
                 variable=autostart_var
             ).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+            
+            # Проверка обновлений
+            check_updates_var = tk.BooleanVar(value=self.config.get("check_updates", True))
+            ttk.Checkbutton(
+                system_frame,
+                text="Проверять обновления при запуске",
+                variable=check_updates_var
+            ).grid(row=1, column=0, padx=5, pady=2, sticky="w")
+            
+            def manual_check_updates():
+                """Ручная проверка обновлений."""
+                from updater import UpdateChecker, CURRENT_VERSION, GITHUB_REPO
+                
+                checker = UpdateChecker(CURRENT_VERSION, GITHUB_REPO)
+                
+                def on_result(has_update, version, url, notes):
+                    if has_update:
+                        checker.show_update_dialog(version, url, notes)
+                    else:
+                        messagebox.showinfo(
+                            "Обновления", 
+                            f"У вас установлена последняя версия ({CURRENT_VERSION})"
+                        )
+                
+                checker.check_for_updates(on_result=on_result, silent=False)
+                messagebox.showinfo("Проверка", "Проверка обновлений запущена...")
+            
+            tk.Button(
+                system_frame,
+                text="🔄 Проверить обновления",
+                command=manual_check_updates
+            ).grid(row=2, column=0, padx=5, pady=5, sticky="w")
 
             def save_settings():
                 new_toggle = toggle_var.get().strip()
@@ -837,6 +869,7 @@ class VoiceInputApp:
                 new_notif = notif_var.get()
                 new_sound = sound_var.get()
                 new_hold_mode = hold_mode_var.get()
+                new_check_updates = check_updates_var.get()
 
                 if not new_toggle or not new_pause:
                     messagebox.showerror("Ошибка", "Горячие клавиши не должны быть пустыми.")
@@ -886,6 +919,9 @@ class VoiceInputApp:
                             logger.info(f"Автозапуск {status}")
                         else:
                             messagebox.showwarning("Предупреждение", "Не удалось изменить настройку автозапуска")
+                    
+                    # Проверка обновлений
+                    self.config.set("check_updates", new_check_updates)
 
                     messagebox.showinfo("Готово", "Настройки сохранены.\nИзменения применятся при следующем запуске распознавания.")
                     on_close()

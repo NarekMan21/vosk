@@ -87,6 +87,8 @@ a = Analysis(
         'app_statistics',
         'autostart',
         'model_manager',
+        'first_run',
+        'updater',
     ] + vosk_hiddenimports + pil_hiddenimports + pystray_hiddenimports + win11toast_hiddenimports,  # Добавляем все скрытые импорты
     hookspath=['.'],  # Ищем hooks в текущей директории
     hooksconfig={},

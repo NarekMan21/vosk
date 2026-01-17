@@ -1,0 +1,13 @@
+{
+  "total_words": 153,
+  "total_time_seconds": 462,
+  "sessions_count": 17,
+  "first_use": "2026-01-17T17:43:11.739052",
+  "last_use": "2026-01-17T18:08:57.470037",
+  "daily": {
+    "2026-01-17": {
+      "words": 153,
+      "time": 462
+    }
+  }
+}

@@ -1,11 +1,12 @@
 {
   "audio": {
     "sample_rate": 16000,
-    "chunk_size": 4000,
-    "channels": 1
+    "chunk_size": 8000,
+    "channels": 1,
+    "device_index": null
   },
   "vosk": {
-    "model_path": "models/vosk-model-small-ru-0.22",
+    "model_path": "models/vosk-model-ru-0.42",
     "language": "ru",
     "words": true,
     "partial_words": true
@@ -27,6 +28,14 @@
     "новая строка": "\n",
     "абзац": "\n\n",
     "пробел": " "
+  },
+  "vad": {
+    "enabled": true,
+    "aggressiveness": 2
+  },
+  "notifications": {
+    "enabled": false,
+    "sound_enabled": true
   },
   "auto_start": false,
   "log_level": "INFO"

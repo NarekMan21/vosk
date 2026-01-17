@@ -4,6 +4,7 @@
 import pyaudio
 import logging
 import threading
+import time
 from queue import Queue
 
 logger = logging.getLogger(__name__)
@@ -11,7 +12,8 @@ logger = logging.getLogger(__name__)
 class AudioCapture:
     """Класс для захвата аудио с микрофона в реальном времени."""
     
-    def __init__(self, sample_rate=16000, chunk_size=4000, channels=1):
+    def __init__(self, sample_rate=16000, chunk_size=4000, channels=1, 
+                 device_index=None, on_error=None):
         """
         Инициализация захвата аудио.
         
@@ -19,19 +21,25 @@ class AudioCapture:
             sample_rate: Частота дискретизации (Гц)
             chunk_size: Размер чанка (количество фреймов)
             channels: Количество каналов (1 = моно)
+            device_index: Индекс устройства (None = по умолчанию)
+            on_error: Callback функция(error_message: str) при ошибках
         """
         self.sample_rate = sample_rate
         self.chunk_size = chunk_size
         self.channels = channels
+        self.device_index = device_index
+        self.on_error = on_error
         self.audio = None
         self.stream = None
         self.is_recording = False
         self.audio_queue = Queue()
         self.thread = None
+        self._error_count = 0
+        self._max_errors = 5
         
     def _audio_callback(self, in_data, frame_count, time_info, status):
         """
-        Callback-функция для обработки аудиоданных.
+        Callback-функция для обработки аудиоданных с обработкой ошибок.
         
         Args:
             in_data: Входные аудиоданные
@@ -40,34 +48,58 @@ class AudioCapture:
             status: Статус потока
         
         Returns:
-            Кортеж (None, pyaudio.paContinue)
+            Кортеж (None, pyaudio.paContinue) или (None, pyaudio.paAbort)
         """
         if status:
-            logger.warning(f"Статус потока: {status}")
+            self._error_count += 1
+            logger.warning(f"Ошибка аудио потока: {status} (#{self._error_count})")
+            
+            if self._error_count >= self._max_errors:
+                error_msg = "Слишком много ошибок аудио. Проверьте микрофон."
+                logger.error(error_msg)
+                if self.on_error:
+                    self.on_error(error_msg)
+                return (None, pyaudio.paAbort)
+        else:
+            # Сбрасываем счётчик при успешном чтении
+            self._error_count = 0
         
-        if self.is_recording:
+        if self.is_recording and in_data:
             self.audio_queue.put(in_data)
         
         return (None, pyaudio.paContinue)
     
     def start(self):
-        """Запуск захвата аудио."""
+        """Запуск захвата аудио с обработкой ошибок."""
         if self.is_recording:
             logger.warning("Захват аудио уже запущен")
             return
         
+        self._error_count = 0
+        
         try:
             self.audio = pyaudio.PyAudio()
             
-            # Поиск устройства ввода по умолчанию
-            default_input = self.audio.get_default_input_device_info()
-            logger.info(f"Используется устройство ввода: {default_input['name']}")
+            # Получаем информацию об устройстве
+            try:
+                if self.device_index is not None:
+                    device_info = self.audio.get_device_info_by_index(self.device_index)
+                else:
+                    device_info = self.audio.get_default_input_device_info()
+                logger.info(f"Используется устройство ввода: {device_info['name']}")
+            except OSError as e:
+                error_msg = f"Микрофон не найден: {e}"
+                logger.error(error_msg)
+                if self.on_error:
+                    self.on_error(error_msg)
+                raise
             
             self.stream = self.audio.open(
                 format=pyaudio.paInt16,
                 channels=self.channels,
                 rate=self.sample_rate,
                 input=True,
+                input_device_index=self.device_index,
                 frames_per_buffer=self.chunk_size,
                 stream_callback=self._audio_callback
             )
@@ -76,8 +108,18 @@ class AudioCapture:
             self.stream.start_stream()
             logger.info("Захват аудио запущен")
             
+        except OSError as e:
+            error_msg = f"Ошибка микрофона: {e}"
+            logger.error(error_msg)
+            if self.on_error:
+                self.on_error(error_msg)
+            self.stop()
+            raise
         except Exception as e:
-            logger.error(f"Ошибка при запуске захвата аудио: {e}")
+            error_msg = f"Неожиданная ошибка аудио: {e}"
+            logger.error(error_msg)
+            if self.on_error:
+                self.on_error(error_msg)
             self.stop()
             raise
     
@@ -113,6 +155,102 @@ class AudioCapture:
                 pass
         
         logger.info("Захват аудио остановлен")
+    
+    def reconnect(self, max_attempts=5, initial_delay=1.0):
+        """
+        Попытка переподключения к микрофону с exponential backoff.
+        
+        Args:
+            max_attempts: Максимальное количество попыток
+            initial_delay: Начальная задержка между попытками (секунды)
+        
+        Returns:
+            True если успешно, False если все попытки исчерпаны
+        """
+        delay = initial_delay
+        
+        for attempt in range(1, max_attempts + 1):
+            logger.info(f"Попытка переподключения {attempt}/{max_attempts}...")
+            
+            # Останавливаем предыдущее соединение
+            self.stop()
+            time.sleep(delay)
+            
+            # Проверяем доступность устройства
+            if not self.is_device_available():
+                logger.warning(f"Устройство недоступно, ждём {delay:.1f}с...")
+                delay = min(delay * 2, 10.0)  # Exponential backoff, max 10s
+                continue
+            
+            try:
+                self.start()
+                logger.info("Переподключение успешно!")
+                return True
+            except Exception as e:
+                logger.warning(f"Попытка {attempt} не удалась: {e}")
+                delay = min(delay * 2, 10.0)
+        
+        error_msg = "Все попытки переподключения исчерпаны"
+        logger.error(error_msg)
+        if self.on_error:
+            self.on_error(error_msg)
+        return False
+    
+    def is_device_available(self) -> bool:
+        """
+        Проверяет доступность аудиоустройства.
+        
+        Returns:
+            True если устройство доступно, False иначе
+        """
+        test_audio = None
+        try:
+            test_audio = pyaudio.PyAudio()
+            if self.device_index is not None:
+                test_audio.get_device_info_by_index(self.device_index)
+            else:
+                test_audio.get_default_input_device_info()
+            return True
+        except (OSError, IOError):
+            return False
+        finally:
+            if test_audio:
+                try:
+                    test_audio.terminate()
+                except:
+                    pass
+    
+    @staticmethod
+    def list_devices():
+        """
+        Получить список доступных устройств ввода.
+        
+        Returns:
+            Список словарей с информацией об устройствах
+        """
+        devices = []
+        audio = None
+        try:
+            audio = pyaudio.PyAudio()
+            for i in range(audio.get_device_count()):
+                try:
+                    info = audio.get_device_info_by_index(i)
+                    if info.get('maxInputChannels', 0) > 0:
+                        devices.append({
+                            'index': i,
+                            'name': info.get('name', 'Unknown'),
+                            'sample_rate': int(info.get('defaultSampleRate', 16000)),
+                            'channels': info.get('maxInputChannels', 1)
+                        })
+                except:
+                    pass
+        finally:
+            if audio:
+                try:
+                    audio.terminate()
+                except:
+                    pass
+        return devices
     
     def read_chunk(self, timeout=1.0):
         """

@@ -4,6 +4,8 @@
 import json
 import os
 import logging
+import shutil
+import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -29,29 +31,85 @@ class Config:
         self.config = self._load_config()
     
     def _load_config(self):
-        """Загрузка конфигурации из файла."""
+        """Загрузка конфигурации с валидацией и восстановлением."""
+        defaults = self._get_default_config()
+        
         if not self.config_path.exists():
-            logger.warning(f"Файл конфигурации {self.config_path} не найден. Создаю файл с настройками по умолчанию.")
-            default_config = self._get_default_config()
-            self._save_config(default_config)
-            return default_config
+            logger.info(f"Файл конфигурации не найден: {self.config_path}")
+            logger.info("Создаю файл с настройками по умолчанию")
+            self._save_config(defaults)
+            return defaults
         
         try:
             with open(self.config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
+                content = f.read().strip()
+            
+            # Пустой файл
+            if not content:
+                logger.warning("Файл конфигурации пуст, использую defaults")
+                self._save_config(defaults)
+                return defaults
+            
+            # Парсинг JSON
+            loaded = json.loads(content)
+            
+            # Merge с defaults (заполняем недостающие поля)
+            merged = self._deep_merge(defaults, loaded)
+            
+            # Проверяем, были ли добавлены недостающие поля
+            if merged != loaded:
+                logger.info("Конфигурация дополнена недостающими полями")
+            
             logger.info(f"Конфигурация загружена из {self.config_path}")
-            return config
+            return merged
+            
         except json.JSONDecodeError as e:
-            logger.error(f"Ошибка при чтении конфигурации: {e}. Использую настройки по умолчанию.")
-            return self._get_default_config()
+            logger.error(f"Ошибка JSON в конфигурации: {e}")
+            
+            # Создаем backup битого файла
+            backup_path = self.config_path.with_suffix('.json.broken')
+            try:
+                shutil.copy(self.config_path, backup_path)
+                logger.info(f"Битый конфиг сохранён в {backup_path}")
+            except Exception as backup_err:
+                logger.warning(f"Не удалось сохранить backup: {backup_err}")
+            
+            logger.info("Использую настройки по умолчанию")
+            self._save_config(defaults)
+            return defaults
+            
+        except Exception as e:
+            logger.error(f"Ошибка загрузки конфигурации: {e}")
+            logger.info("Использую настройки по умолчанию")
+            return defaults
+    
+    def _deep_merge(self, base: dict, override: dict) -> dict:
+        """
+        Глубокое слияние словарей.
+        base - базовый словарь (defaults)
+        override - словарь с переопределениями (loaded)
+        Возвращает новый словарь с данными из override, дополненный из base.
+        """
+        result = base.copy()
+        
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                # Рекурсивное слияние вложенных словарей
+                result[key] = self._deep_merge(result[key], value)
+            else:
+                # Переопределение значения
+                result[key] = value
+        
+        return result
     
     def _get_default_config(self):
         """Получение конфигурации по умолчанию."""
         return {
             "audio": {
                 "sample_rate": 16000,
-                "chunk_size": 4000,
-                "channels": 1
+                "chunk_size": 8000,  # Увеличено для меньших накладных расходов
+                "channels": 1,
+                "device_index": None  # None = устройство по умолчанию
             },
             "vosk": {
                 "model_path": "models/vosk-model-ru-0.42",
@@ -75,21 +133,55 @@ class Config:
                 "абзац": "\n\n",
                 "пробел": " "
             },
+            "vad": {
+                "enabled": True,
+                "aggressiveness": 2  # 0-3, где 3 = максимальная фильтрация
+            },
+            "notifications": {
+                "enabled": True,       # Toast-уведомления
+                "sound_enabled": True  # Звуковая обратная связь
+            },
             "auto_start": False,
             "log_level": "INFO"
         }
     
     def _save_config(self, config=None):
-        """Сохранение конфигурации в файл."""
+        """
+        Атомарное сохранение конфигурации в файл.
+        Записывает во временный файл, затем делает atomic rename.
+        """
         if config is None:
             config = self.config
         
+        tmp_path = None
         try:
-            with open(self.config_path, 'w', encoding='utf-8') as f:
-                json.dump(config, f, ensure_ascii=False, indent=2)
+            # Создаём временный файл в той же директории
+            dir_path = self.config_path.parent
+            dir_path.mkdir(parents=True, exist_ok=True)
+            
+            with tempfile.NamedTemporaryFile(
+                mode='w',
+                suffix='.json.tmp',
+                dir=str(dir_path),
+                delete=False,
+                encoding='utf-8'
+            ) as tmp:
+                json.dump(config, tmp, ensure_ascii=False, indent=2)
+                tmp_path = Path(tmp.name)
+            
+            # Атомарный rename (на Windows используем replace)
+            tmp_path.replace(self.config_path)
             logger.info(f"Конфигурация сохранена в {self.config_path}")
+            
         except Exception as e:
             logger.error(f"Ошибка при сохранении конфигурации: {e}")
+            # Удаляем временный файл если остался
+            if tmp_path and tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except:
+                    pass
+            raise
     
     def get(self, key, default=None):
         """
@@ -152,6 +244,11 @@ class Config:
         return self.get("audio.channels", 1)
     
     @property
+    def audio_device_index(self):
+        """Индекс аудиоустройства (None = по умолчанию)."""
+        return self.get("audio.device_index", None)
+    
+    @property
     def vosk_model_path(self):
         """Путь к модели Vosk."""
         return self.get("vosk.model_path", "models/vosk-model-ru-0.42")
@@ -186,6 +283,26 @@ class Config:
         """Способ ввода текста: clipboard или typing."""
         return self.get("input.method", "clipboard")
 
+    @property
+    def vad_enabled(self):
+        """Включён ли VAD фильтр тишины."""
+        return self.get("vad.enabled", True)
+    
+    @property
+    def vad_aggressiveness(self):
+        """Агрессивность VAD (0-3)."""
+        return self.get("vad.aggressiveness", 2)
+    
+    @property
+    def notifications_enabled(self):
+        """Включены ли toast-уведомления."""
+        return self.get("notifications.enabled", True)
+    
+    @property
+    def sound_enabled(self):
+        """Включена ли звуковая обратная связь."""
+        return self.get("notifications.sound_enabled", True)
+    
     @property
     def auto_start(self):
         """Автозапуск при старте."""

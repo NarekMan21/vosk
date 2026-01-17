@@ -141,3 +141,51 @@ class SpeechRecognition:
             text, is_final = self.recognize_chunk(audio_chunk)
             if text:
                 yield text, is_final
+    
+    def switch_model(self, new_model_path: str) -> bool:
+        """
+        Переключение на другую модель.
+        
+        Args:
+            new_model_path: Путь к новой модели
+            
+        Returns:
+            True если успешно, False иначе
+        """
+        new_path = Path(new_model_path)
+        
+        if not new_path.exists():
+            logger.error(f"Модель не найдена: {new_path}")
+            return False
+        
+        try:
+            logger.info(f"Переключение модели: {self.model_path} → {new_path}")
+            
+            # Загрузка новой модели
+            new_model = vosk.Model(str(new_path))
+            new_recognizer = vosk.KaldiRecognizer(new_model, self.sample_rate)
+            
+            if self.words:
+                new_recognizer.SetWords(True)
+            if self.partial_words:
+                try:
+                    new_recognizer.SetPartialWords(True)
+                except AttributeError:
+                    pass
+            
+            # Замена
+            self.model = new_model
+            self.recognizer = new_recognizer
+            self.model_path = new_path
+            
+            logger.info(f"Модель переключена на: {new_path.name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Ошибка переключения модели: {e}")
+            return False
+    
+    @property
+    def model_name(self) -> str:
+        """Имя текущей модели."""
+        return self.model_path.name if self.model_path else "Нет модели"

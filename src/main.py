@@ -622,28 +622,40 @@ class VoiceInputApp:
 
         def _show_settings():
             try:
+                import customtkinter as ctk
+                from tkinter import messagebox
                 import tkinter as tk
-                from tkinter import ttk, messagebox
             except ImportError:
-                logger.error("Tkinter недоступен, окно настроек открыть нельзя")
+                logger.error("CustomTkinter недоступен, окно настроек открыть нельзя")
                 return
 
             import time
             self.settings_window_open = True
             self._settings_open_time = time.time()
             
-            root = tk.Tk()
-            root.title("Настройки VoiceInput")
-            root.resizable(False, False)
-            
-            # Применяем тему
+            # =================================================================
+            # 🎨 НАСТРОЙКА CUSTOMTKINTER
+            # =================================================================
             is_dark = self.config.get("dark_theme", True)
-            try:
-                from themes import apply_theme, style_tk_widget, DARK_THEME, LIGHT_THEME
-                current_theme = apply_theme(root, dark=is_dark)
-            except Exception as e:
-                logger.debug(f"Не удалось применить тему: {e}")
-                current_theme = None
+            ctk.set_appearance_mode("dark" if is_dark else "light")
+            ctk.set_default_color_theme("blue")
+            
+            # Цвета темы
+            COLORS = {
+                'bg': '#161618',
+                'bg_secondary': '#1C1C1E',
+                'fg': '#FFFFFF',
+                'fg_secondary': '#8E8E93',
+                'accent': '#0A84FF',
+                'accent_hover': '#0066CC',
+                'success': '#30D158',
+                'border': '#38383A',
+            }
+            
+            root = ctk.CTk()
+            root.title("Настройки VoiceInput")
+            root.resizable(True, True)  # Разрешаем изменение размера
+            root.configure(fg_color=COLORS['bg'])
 
             def on_close():
                 self.settings_window_open = False
@@ -654,60 +666,140 @@ class VoiceInputApp:
 
             root.protocol("WM_DELETE_WINDOW", on_close)
             
-            # Функция для создания tooltip
-            def create_tooltip(widget, text):
-                def show_tooltip(event):
-                    tooltip = tk.Toplevel(widget)
-                    tooltip.wm_overrideredirect(True)
-                    tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
-                    label = tk.Label(tooltip, text=text, background="#ffffe0", 
-                                    relief="solid", borderwidth=1, padx=5, pady=2)
-                    label.pack()
-                    widget._tooltip = tooltip
-                    widget.after(3000, lambda: tooltip.destroy() if tooltip.winfo_exists() else None)
+            # =================================================================
+            # 📦 ФУНКЦИЯ СОЗДАНИЯ КАРТОЧКИ С HOVER-ЭФФЕКТОМ
+            # =================================================================
+            def create_card(parent, title, row):
+                """Создать карточку-секцию с заголовком и hover-эффектом."""
+                card = ctk.CTkFrame(
+                    parent,
+                    corner_radius=12,
+                    fg_color=COLORS['bg_secondary'],
+                    border_width=1,
+                    border_color=COLORS['border']
+                )
+                card.grid(row=row, column=0, columnspan=2, padx=24, pady=8, sticky="ew")
                 
-                def hide_tooltip(event):
-                    if hasattr(widget, '_tooltip') and widget._tooltip.winfo_exists():
-                        widget._tooltip.destroy()
+                # Hover-эффект для карточки
+                def on_enter(e):
+                    card.configure(fg_color='#252528', border_color=COLORS['accent'])
                 
-                widget.bind("<Enter>", show_tooltip)
-                widget.bind("<Leave>", hide_tooltip)
+                def on_leave(e):
+                    card.configure(fg_color=COLORS['bg_secondary'], border_color=COLORS['border'])
+                
+                card.bind("<Enter>", on_enter)
+                card.bind("<Leave>", on_leave)
+                
+                # Заголовок карточки
+                title_label = ctk.CTkLabel(
+                    card,
+                    text=title,
+                    font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+                    text_color=COLORS['fg']
+                )
+                title_label.pack(anchor="w", padx=16, pady=(16, 8))
+                
+                # Контейнер для содержимого
+                content = ctk.CTkFrame(card, fg_color="transparent")
+                content.pack(fill="x", padx=16, pady=(0, 16))
+                
+                return content
             
+            # =================================================================
+            # 📌 ЗАГОЛОВОК ОКНА (вне скролла)
+            # =================================================================
+            header_frame = ctk.CTkFrame(root, fg_color="transparent")
+            header_frame.pack(fill="x", padx=24, pady=(24, 8))
+            
+            title_label = ctk.CTkLabel(
+                header_frame,
+                text="⚙️ Настройки",
+                font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"),
+                text_color=COLORS['fg']
+            )
+            title_label.pack(anchor='w')
+            
+            # =================================================================
+            # 📜 СКРОЛЛ-КОНТЕЙНЕР ДЛЯ КАРТОЧЕК
+            # =================================================================
+            scroll_container = ctk.CTkScrollableFrame(
+                root,
+                fg_color="transparent",
+                scrollbar_button_color=COLORS['border'],
+                scrollbar_button_hover_color=COLORS['accent']
+            )
+            scroll_container.pack(fill="both", expand=True, padx=0, pady=0)
+            
+            # Переопределяем create_card для использования pack вместо grid
+            def create_card_scrollable(parent, title):
+                """Создать карточку-секцию с заголовком и hover-эффектом (для скролла)."""
+                card = ctk.CTkFrame(
+                    parent,
+                    corner_radius=12,
+                    fg_color=COLORS['bg_secondary'],
+                    border_width=1,
+                    border_color=COLORS['border']
+                )
+                card.pack(fill="x", padx=24, pady=8)
+                
+                # Hover-эффект для карточки
+                def on_enter(e):
+                    card.configure(fg_color='#252528', border_color=COLORS['accent'])
+                
+                def on_leave(e):
+                    card.configure(fg_color=COLORS['bg_secondary'], border_color=COLORS['border'])
+                
+                card.bind("<Enter>", on_enter)
+                card.bind("<Leave>", on_leave)
+                
+                # Заголовок карточки
+                title_label = ctk.CTkLabel(
+                    card,
+                    text=title,
+                    font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+                    text_color=COLORS['fg']
+                )
+                title_label.pack(anchor="w", padx=16, pady=(16, 8))
+                
+                # Контейнер для содержимого
+                content = ctk.CTkFrame(card, fg_color="transparent")
+                content.pack(fill="x", padx=16, pady=(0, 16))
+                
+                return content
+            
+            # =================================================================
             # === Секция: Качество (предустановки) ===
-            quality_frame = ttk.LabelFrame(root, text="🎯 Качество распознавания", padding=10)
-            quality_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+            # =================================================================
+            quality_content = create_card_scrollable(scroll_container, "🎯 Качество распознавания")
             
             # Определяем текущее качество на основе настроек
             current_vad = self.config.vad_aggressiveness
             current_chunk = self.config.audio_chunk_size
             if current_vad >= 3 and current_chunk >= 8000:
-                current_quality = "fast"
+                current_quality = "⚡ Быстрое"
             elif current_vad <= 1:
-                current_quality = "quality"
+                current_quality = "🎯 Точное"
             else:
-                current_quality = "balanced"
+                current_quality = "⚖️ Баланс"
             
-            quality_var = tk.StringVar(value=current_quality)
+            quality_var = ctk.StringVar(value=current_quality)
             
-            qualities = [
-                ("⚡ Быстрое", "fast", "Меньше нагрузка CPU, базовое качество"),
-                ("⚖️ Сбалансированное", "balanced", "Оптимальный баланс скорости и качества"),
-                ("🎯 Точное", "quality", "Максимальное качество, выше нагрузка CPU")
-            ]
+            # Сегментированная кнопка для выбора качества
+            quality_segment = ctk.CTkSegmentedButton(
+                quality_content,
+                values=["⚡ Быстрое", "⚖️ Баланс", "🎯 Точное"],
+                variable=quality_var,
+                corner_radius=8,
+                font=ctk.CTkFont(size=12),
+                selected_color=COLORS['accent'],
+                selected_hover_color=COLORS['accent_hover']
+            )
+            quality_segment.pack(fill="x", pady=4)
             
-            for i, (label, value, desc) in enumerate(qualities):
-                rb = ttk.Radiobutton(
-                    quality_frame,
-                    text=label,
-                    variable=quality_var,
-                    value=value
-                )
-                rb.grid(row=0, column=i, padx=10, pady=5)
-                create_tooltip(rb, desc)
-            
+            # =================================================================
             # === Секция: Микрофон ===
-            mic_frame = ttk.LabelFrame(root, text="🎤 Микрофон", padding=10)
-            mic_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+            # =================================================================
+            mic_content = create_card_scrollable(scroll_container, "🎤 Микрофон")
             
             # Получаем список устройств
             devices = AudioCapture.list_devices()
@@ -723,21 +815,25 @@ class VoiceInputApp:
                         current_selection = i
                         break
             
-            tk.Label(mic_frame, text="Устройство:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-            device_var = tk.StringVar(value=device_names[current_selection])
-            device_combo = ttk.Combobox(
-                mic_frame,
-                textvariable=device_var,
+            mic_row = ctk.CTkFrame(mic_content, fg_color="transparent")
+            mic_row.pack(fill="x", pady=4)
+            
+            device_var = ctk.StringVar(value=device_names[current_selection])
+            device_combo = ctk.CTkComboBox(
+                mic_row,
+                variable=device_var,
                 values=device_names,
-                state="readonly",
-                width=35
+                width=280,
+                corner_radius=8,
+                dropdown_hover_color=COLORS['accent']
             )
-            device_combo.grid(row=0, column=1, padx=5, pady=5)
+            device_combo.pack(side="left", padx=(0, 8))
             
             def test_microphone():
                 """Тест выбранного микрофона."""
-                selected = device_combo.current()
-                test_device_index = device_indices[selected]
+                selected_name = device_var.get()
+                selected_idx = device_names.index(selected_name) if selected_name in device_names else 0
+                test_device_index = device_indices[selected_idx]
                 
                 try:
                     test_capture = AudioCapture(
@@ -764,84 +860,117 @@ class VoiceInputApp:
                 except Exception as e:
                     messagebox.showerror("Тест микрофона", f"Ошибка: {e}")
             
-            tk.Button(mic_frame, text="Тест", command=test_microphone, width=8).grid(row=0, column=2, padx=5, pady=5)
+            test_btn = ctk.CTkButton(
+                mic_row, 
+                text="🔊 Тест", 
+                command=test_microphone,
+                width=80,
+                corner_radius=8,
+                fg_color=COLORS['bg'],
+                hover_color=COLORS['border']
+            )
+            test_btn.pack(side="left")
             
+            # =================================================================
             # === Секция: Горячие клавиши ===
-            hotkey_frame = ttk.LabelFrame(root, text="⌨️ Горячие клавиши", padding=10)
-            hotkey_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+            # =================================================================
+            hotkey_content = create_card_scrollable(scroll_container, "⌨️ Горячие клавиши")
 
-            tk.Label(hotkey_frame, text="Включение/выключение:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-            toggle_var = tk.StringVar(value=self.config.hotkey_toggle)
-            tk.Entry(hotkey_frame, textvariable=toggle_var, width=20).grid(row=0, column=1, padx=5, pady=5)
-
-            tk.Label(hotkey_frame, text="Пауза:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-            pause_var = tk.StringVar(value=self.config.hotkey_pause)
-            tk.Entry(hotkey_frame, textvariable=pause_var, width=20).grid(row=1, column=1, padx=5, pady=5)
+            # Строка: Включение/выключение
+            toggle_row = ctk.CTkFrame(hotkey_content, fg_color="transparent")
+            toggle_row.pack(fill="x", pady=4)
             
-            # Чекбокс режима зажатия (push-to-talk)
-            hold_mode_var = tk.BooleanVar(value=self.config.hotkey_hold_mode)
-            hold_cb = ttk.Checkbutton(
-                hotkey_frame,
+            ctk.CTkLabel(toggle_row, text="Включение/выключение:", text_color=COLORS['fg_secondary']).pack(side="left")
+            toggle_var = ctk.StringVar(value=self.config.hotkey_toggle)
+            toggle_entry = ctk.CTkEntry(toggle_row, textvariable=toggle_var, width=150, corner_radius=8)
+            toggle_entry.pack(side="right")
+
+            # Строка: Пауза
+            pause_row = ctk.CTkFrame(hotkey_content, fg_color="transparent")
+            pause_row.pack(fill="x", pady=4)
+            
+            ctk.CTkLabel(pause_row, text="Пауза:", text_color=COLORS['fg_secondary']).pack(side="left")
+            pause_var = ctk.StringVar(value=self.config.hotkey_pause)
+            pause_entry = ctk.CTkEntry(pause_row, textvariable=pause_var, width=150, corner_radius=8)
+            pause_entry.pack(side="right")
+            
+            # Toggle Switch: Режим зажатия
+            hold_mode_var = ctk.BooleanVar(value=self.config.hotkey_hold_mode)
+            hold_switch = ctk.CTkSwitch(
+                hotkey_content,
                 text="Режим зажатия (push-to-talk)",
-                variable=hold_mode_var
+                variable=hold_mode_var,
+                onvalue=True,
+                offvalue=False,
+                progress_color=COLORS['success']
             )
-            hold_cb.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky="w")
-            create_tooltip(hold_cb, "Вкл: держите клавишу для записи\nВыкл: нажмите для переключения вкл/выкл")
+            hold_switch.pack(anchor="w", pady=8)
             
+            # =================================================================
             # === Секция: Ввод ===
-            input_frame = ttk.LabelFrame(root, text="📝 Ввод текста", padding=10)
-            input_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+            # =================================================================
+            input_content = create_card_scrollable(scroll_container, "📝 Ввод текста")
 
-            tk.Label(input_frame, text="Способ:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-            method_var = tk.StringVar(value=self.config.input_method)
-            ttk.Combobox(
-                input_frame,
-                textvariable=method_var,
-                values=("clipboard", "typing"),
-                state="readonly",
-                width=17
-            ).grid(row=0, column=1, padx=5, pady=5)
+            input_row = ctk.CTkFrame(input_content, fg_color="transparent")
+            input_row.pack(fill="x", pady=4)
             
+            ctk.CTkLabel(input_row, text="Способ ввода:", text_color=COLORS['fg_secondary']).pack(side="left")
+            method_var = ctk.StringVar(value=self.config.input_method)
+            method_combo = ctk.CTkComboBox(
+                input_row,
+                variable=method_var,
+                values=["clipboard", "typing"],
+                width=150,
+                corner_radius=8
+            )
+            method_combo.pack(side="right")
+            
+            # =================================================================
             # === Секция: Уведомления ===
-            notif_frame = ttk.LabelFrame(root, text="🔔 Уведомления", padding=10)
-            notif_frame.grid(row=4, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+            # =================================================================
+            notif_content = create_card_scrollable(scroll_container, "🔔 Уведомления")
             
-            notif_var = tk.BooleanVar(value=self.config.notifications_enabled)
-            notif_cb = ttk.Checkbutton(
-                notif_frame,
+            notif_var = ctk.BooleanVar(value=self.config.notifications_enabled)
+            notif_switch = ctk.CTkSwitch(
+                notif_content,
                 text="Показывать уведомления Windows",
-                variable=notif_var
+                variable=notif_var,
+                progress_color=COLORS['success']
             )
-            notif_cb.grid(row=0, column=0, padx=5, pady=2, sticky="w")
-            create_tooltip(notif_cb, "Toast-уведомления при включении/выключении")
+            notif_switch.pack(anchor="w", pady=4)
             
-            sound_var = tk.BooleanVar(value=self.config.sound_enabled)
-            sound_cb = ttk.Checkbutton(
-                notif_frame,
+            sound_var = ctk.BooleanVar(value=self.config.sound_enabled)
+            sound_switch = ctk.CTkSwitch(
+                notif_content,
                 text="Звуковые сигналы",
-                variable=sound_var
+                variable=sound_var,
+                progress_color=COLORS['success']
             )
-            sound_cb.grid(row=1, column=0, padx=5, pady=2, sticky="w")
-            create_tooltip(sound_cb, "Бип при включении/выключении распознавания")
+            sound_switch.pack(anchor="w", pady=4)
             
+            # =================================================================
             # === Секция: Система ===
-            system_frame = ttk.LabelFrame(root, text="⚙️ Система", padding=10)
-            system_frame.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+            # =================================================================
+            system_content = create_card_scrollable(scroll_container, "🛠️ Система")
             
-            autostart_var = tk.BooleanVar(value=is_autostart_enabled())
-            ttk.Checkbutton(
-                system_frame,
+            autostart_var = ctk.BooleanVar(value=is_autostart_enabled())
+            autostart_switch = ctk.CTkSwitch(
+                system_content,
                 text="Запускать при старте Windows",
-                variable=autostart_var
-            ).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+                variable=autostart_var,
+                progress_color=COLORS['success']
+            )
+            autostart_switch.pack(anchor="w", pady=4)
             
             # Проверка обновлений
-            check_updates_var = tk.BooleanVar(value=self.config.get("check_updates", True))
-            ttk.Checkbutton(
-                system_frame,
+            check_updates_var = ctk.BooleanVar(value=self.config.get("check_updates", True))
+            updates_switch = ctk.CTkSwitch(
+                system_content,
                 text="Проверять обновления при запуске",
-                variable=check_updates_var
-            ).grid(row=1, column=0, padx=5, pady=2, sticky="w")
+                variable=check_updates_var,
+                progress_color=COLORS['success']
+            )
+            updates_switch.pack(anchor="w", pady=4)
             
             def manual_check_updates():
                 """Ручная проверка обновлений."""
@@ -861,26 +990,38 @@ class VoiceInputApp:
                 checker.check_for_updates(on_result=on_result, silent=False)
                 messagebox.showinfo("Проверка", "Проверка обновлений запущена...")
             
-            # Тёмная тема
-            dark_theme_var = tk.BooleanVar(value=self.config.get("dark_theme", True))
-            ttk.Checkbutton(
-                system_frame,
+            # Тёмная тема (Switch)
+            dark_theme_var = ctk.BooleanVar(value=self.config.get("dark_theme", True))
+            dark_switch = ctk.CTkSwitch(
+                system_content,
                 text="Тёмная тема",
-                variable=dark_theme_var
-            ).grid(row=2, column=0, padx=5, pady=2, sticky="w")
+                variable=dark_theme_var,
+                progress_color=COLORS['accent']
+            )
+            dark_switch.pack(anchor="w", pady=4)
             
-            tk.Button(
-                system_frame,
+            # Кнопка проверки обновлений
+            update_btn = ctk.CTkButton(
+                system_content,
                 text="🔄 Проверить обновления",
-                command=manual_check_updates
-            ).grid(row=3, column=0, padx=5, pady=5, sticky="w")
+                command=manual_check_updates,
+                corner_radius=8,
+                fg_color=COLORS['bg'],
+                hover_color=COLORS['border'],
+                width=200
+            )
+            update_btn.pack(anchor="w", pady=(8, 0))
 
             def save_settings():
                 new_toggle = toggle_var.get().strip()
                 new_pause = pause_var.get().strip()
                 new_method = method_var.get().strip()
-                selected_device = device_combo.current()
-                new_device_index = device_indices[selected_device]
+                
+                # Получаем выбранный микрофон
+                selected_name = device_var.get()
+                selected_idx = device_names.index(selected_name) if selected_name in device_names else 0
+                new_device_index = device_indices[selected_idx]
+                
                 new_autostart = autostart_var.get()
                 new_quality = quality_var.get()
                 new_notif = notif_var.get()
@@ -900,14 +1041,14 @@ class VoiceInputApp:
                     self.config.set("input.method", new_method)
                     self.config.set("audio.device_index", new_device_index)
                     
-                    # Применяем предустановку качества
-                    if new_quality == "fast":
+                    # Применяем предустановку качества (по названию из сегментированной кнопки)
+                    if "Быстрое" in new_quality:
                         self.config.set("vad.aggressiveness", 3)
                         self.config.set("audio.chunk_size", 8000)
-                    elif new_quality == "balanced":
+                    elif "Баланс" in new_quality:
                         self.config.set("vad.aggressiveness", 2)
                         self.config.set("audio.chunk_size", 8000)
-                    elif new_quality == "quality":
+                    elif "Точное" in new_quality:
                         self.config.set("vad.aggressiveness", 1)
                         self.config.set("audio.chunk_size", 4000)
                     
@@ -949,30 +1090,121 @@ class VoiceInputApp:
                 except Exception as e:
                     messagebox.showerror("Ошибка", f"Не удалось сохранить настройки: {e}")
 
-            # Кнопка управления моделями
-            tk.Button(
-                root,
+            # =================================================================
+            # Кнопка управления моделями (внутри скролла)
+            # =================================================================
+            models_btn = ctk.CTkButton(
+                scroll_container,
                 text="📦 Управление моделями...",
-                command=lambda: [on_close(), self.open_model_manager()]
-            ).grid(row=6, column=0, columnspan=2, pady=5)
+                command=lambda: [on_close(), self.open_model_manager()],
+                corner_radius=8,
+                fg_color=COLORS['bg_secondary'],
+                hover_color=COLORS['border'],
+                width=250
+            )
+            models_btn.pack(pady=12)
             
-            button_frame = tk.Frame(root)
-            button_frame.grid(row=7, column=0, columnspan=2, pady=10)
+            # =================================================================
+            # Кнопки действий (вне скролла — всегда видимы)
+            # =================================================================
+            button_frame = ctk.CTkFrame(root, fg_color="transparent")
+            button_frame.pack(pady=16)
 
-            tk.Button(button_frame, text="Сохранить", command=save_settings, width=12).pack(side=tk.LEFT, padx=5)
-            tk.Button(button_frame, text="Отмена", command=on_close, width=12).pack(side=tk.LEFT, padx=5)
+            # Кнопка "Сохранить" — акцентная
+            save_btn = ctk.CTkButton(
+                button_frame, 
+                text="✓ Сохранить", 
+                command=save_settings, 
+                width=140,
+                height=40,
+                corner_radius=10,
+                fg_color=COLORS['accent'],
+                hover_color=COLORS['accent_hover'],
+                font=ctk.CTkFont(size=14, weight="bold")
+            )
+            save_btn.pack(side="left", padx=8)
+            
+            # Кнопка "Отмена" — нейтральная с обводкой
+            cancel_btn = ctk.CTkButton(
+                button_frame, 
+                text="Отмена", 
+                command=on_close, 
+                width=140,
+                height=40,
+                corner_radius=10,
+                fg_color="transparent",
+                hover_color=COLORS['border'],
+                border_width=1,
+                border_color=COLORS['border'],
+                text_color=COLORS['fg'],
+                font=ctk.CTkFont(size=14)
+            )
+            cancel_btn.pack(side="left", padx=8)
+            
+            # =================================================================
+            # Footer с версией
+            # =================================================================
+            try:
+                from updater import CURRENT_VERSION
+            except ImportError:
+                CURRENT_VERSION = "1.0.5"
+            
+            footer_label = ctk.CTkLabel(
+                root,
+                text=f"VoiceInput v{CURRENT_VERSION} • Сделано с ❤️",
+                font=ctk.CTkFont(size=11),
+                text_color=COLORS['fg_secondary']
+            )
+            footer_label.pack(pady=(8, 24))
 
-            # Позиционирование окна в правом нижнем углу экрана (ближе к трею)
+            # Позиционирование окна ПО ЦЕНТРУ экрана
             root.update_idletasks()
-            window_width = root.winfo_width()
-            window_height = root.winfo_height()
+            
+            # Принудительно задаём минимальный размер окна
+            root.minsize(450, 600)
+            root.update_idletasks()
+            
+            window_width = max(root.winfo_width(), 450)
+            window_height = max(root.winfo_height(), 600)
             screen_width = root.winfo_screenwidth()
             screen_height = root.winfo_screenheight()
             
-            x = screen_width - window_width - 50
-            y = screen_height - window_height - 100
+            # Центрируем окно
+            x = (screen_width - window_width) // 2
+            y = (screen_height - window_height) // 2
             
-            root.geometry(f"+{x}+{y}")
+            # Убеждаемся что координаты положительные
+            x = max(50, x)
+            y = max(50, y)
+            
+            root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+            logger.info(f"Окно настроек: {window_width}x{window_height} at ({x}, {y})")
+            
+            # =================================================================
+            # 🎬 FADE-IN АНИМАЦИЯ
+            # =================================================================
+            def fade_in():
+                """Плавное появление окна."""
+                root.attributes('-alpha', 0)  # Начинаем с прозрачного
+                root.deiconify()  # Показываем окно
+                
+                alpha = 0.0
+                step = 0.08  # Шаг увеличения прозрачности
+                interval = 15  # Интервал в мс
+                
+                def animate():
+                    nonlocal alpha
+                    alpha += step
+                    if alpha >= 1.0:
+                        root.attributes('-alpha', 1.0)
+                        return
+                    root.attributes('-alpha', alpha)
+                    root.after(interval, animate)
+                
+                animate()
+            
+            # Запускаем fade-in
+            fade_in()
 
             try:
                 root.mainloop()

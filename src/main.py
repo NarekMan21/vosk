@@ -35,6 +35,8 @@ from vad import VoiceActivityDetector
 from autostart import is_autostart_enabled, set_autostart
 from app_statistics import Statistics
 from model_manager import ModelManager
+from first_run import should_show_tutorial, show_tutorial
+from updater import check_updates_on_startup
 
 
 def get_base_path():
@@ -219,6 +221,13 @@ class VoiceInputApp:
             self.audio_feedback.play_ready()
             
             logger.info("Инициализация завершена")
+            
+            # Показать туториал при первом запуске
+            if should_show_tutorial(self.config):
+                show_tutorial(self.config)
+            
+            # Проверка обновлений при запуске
+            check_updates_on_startup(self.config, self.notifications)
             
             # Автозапуск если настроено
             if self.config.auto_start:
@@ -569,11 +578,26 @@ class VoiceInputApp:
     
     def _register_hotkeys(self):
         """Регистрация горячих клавиш согласно текущей конфигурации."""
-        self.hotkey_manager.register_hotkey(
-            self.config.hotkey_toggle,
-            self.toggle,
-            "Включить/выключить"
-        )
+        hold_mode = self.config.hotkey_hold_mode
+        
+        if hold_mode:
+            # Режим зажатия: start при нажатии, stop при отпускании
+            self.hotkey_manager.register_hotkey(
+                self.config.hotkey_toggle,
+                self.start,  # При нажатии — включить
+                "Включить (зажатие)",
+                hold_mode=True,
+                on_release=self.stop  # При отпускании — выключить
+            )
+        else:
+            # Обычный toggle режим
+            self.hotkey_manager.register_hotkey(
+                self.config.hotkey_toggle,
+                self.toggle,
+                "Включить/выключить"
+            )
+        
+        # Пауза всегда toggle
         self.hotkey_manager.register_hotkey(
             self.config.hotkey_pause,
             self.pause,
@@ -582,9 +606,19 @@ class VoiceInputApp:
 
     def open_settings(self):
         """Открытие окна настроек с выбором микрофона, горячих клавиш и метода ввода."""
+        # Защита от залипания флага — сбрасываем если прошло много времени
         if self.settings_window_open:
-            logger.info("Окно настроек уже открыто")
-            return
+            if hasattr(self, '_settings_open_time'):
+                import time
+                if time.time() - self._settings_open_time > 60:  # 60 секунд таймаут
+                    logger.warning("Сброс залипшего флага окна настроек")
+                    self.settings_window_open = False
+                else:
+                    logger.info("Окно настроек уже открыто")
+                    return
+            else:
+                logger.info("Окно настроек уже открыто")
+                return
 
         def _show_settings():
             try:
@@ -594,15 +628,20 @@ class VoiceInputApp:
                 logger.error("Tkinter недоступен, окно настроек открыть нельзя")
                 return
 
+            import time
             self.settings_window_open = True
-
+            self._settings_open_time = time.time()
+            
             root = tk.Tk()
             root.title("Настройки VoiceInput")
             root.resizable(False, False)
 
             def on_close():
                 self.settings_window_open = False
-                root.destroy()
+                try:
+                    root.destroy()
+                except:
+                    pass
 
             root.protocol("WM_DELETE_WINDOW", on_close)
             
@@ -730,6 +769,16 @@ class VoiceInputApp:
             pause_var = tk.StringVar(value=self.config.hotkey_pause)
             tk.Entry(hotkey_frame, textvariable=pause_var, width=20).grid(row=1, column=1, padx=5, pady=5)
             
+            # Чекбокс режима зажатия (push-to-talk)
+            hold_mode_var = tk.BooleanVar(value=self.config.hotkey_hold_mode)
+            hold_cb = ttk.Checkbutton(
+                hotkey_frame,
+                text="Режим зажатия (push-to-talk)",
+                variable=hold_mode_var
+            )
+            hold_cb.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+            create_tooltip(hold_cb, "Вкл: держите клавишу для записи\nВыкл: нажмите для переключения вкл/выкл")
+            
             # === Секция: Ввод ===
             input_frame = ttk.LabelFrame(root, text="📝 Ввод текста", padding=10)
             input_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
@@ -787,6 +836,7 @@ class VoiceInputApp:
                 new_quality = quality_var.get()
                 new_notif = notif_var.get()
                 new_sound = sound_var.get()
+                new_hold_mode = hold_mode_var.get()
 
                 if not new_toggle or not new_pause:
                     messagebox.showerror("Ошибка", "Горячие клавиши не должны быть пустыми.")
@@ -796,6 +846,7 @@ class VoiceInputApp:
                     # Сохраняем настройки
                     self.config.set("hotkeys.toggle", new_toggle)
                     self.config.set("hotkeys.pause", new_pause)
+                    self.config.set("hotkeys.hold_mode", new_hold_mode)
                     self.config.set("input.method", new_method)
                     self.config.set("audio.device_index", new_device_index)
                     
@@ -866,7 +917,13 @@ class VoiceInputApp:
             
             root.geometry(f"+{x}+{y}")
 
-            root.mainloop()
+            try:
+                root.mainloop()
+            except Exception as e:
+                logger.error(f"Ошибка в окне настроек: {e}")
+            finally:
+                # Гарантированный сброс флага
+                self.settings_window_open = False
 
         threading.Thread(target=_show_settings, daemon=True).start()
     

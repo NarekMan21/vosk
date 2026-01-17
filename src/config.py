@@ -117,7 +117,8 @@ class Config:
             },
             "hotkeys": {
                 "toggle": "win+h",
-                "pause": "ctrl+shift+p"
+                "pause": "ctrl+shift+p",
+                "hold_mode": False  # False = toggle, True = hold (push-to-talk)
             },
             "input": {
                 "method": "clipboard"  # clipboard or typing
@@ -142,7 +143,9 @@ class Config:
                 "sound_enabled": True  # Звуковая обратная связь
             },
             "auto_start": False,
-            "log_level": "INFO"
+            "log_level": "INFO",
+            "tutorial_shown": False,
+            "check_updates": True
         }
     
     def _save_config(self, config=None):
@@ -272,6 +275,11 @@ class Config:
     def hotkey_pause(self):
         """Горячая клавиша для паузы."""
         return self.get("hotkeys.pause", "ctrl+shift+p")
+    
+    @property
+    def hotkey_hold_mode(self):
+        """Режим горячей клавиши: False = toggle, True = hold (зажатие)."""
+        return self.get("hotkeys.hold_mode", False)
     
     @property
     def voice_commands(self):
